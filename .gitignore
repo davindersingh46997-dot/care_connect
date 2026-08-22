@@ -1,0 +1,43 @@
+# Local environment and secrets
+.env
+.env.*
+!.env.example
+*.local
+
+# Python environments and generated files
+venv/
+venv_win/
+.venv/
+__pycache__/
+*.py[cod]
+*.pyd
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Local databases and runtime files
+*.db
+*.sqlite
+*.sqlite3
+*.log
+
+# JavaScript dependencies and build output
+node_modules/
+**/node_modules/
+dist/
+**/dist/
+
+# Coverage and test output
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+
+# Operating-system metadata
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Editor and tool state
+.vscode/*.code-workspace
+.vscode/settings.json
