@@ -8,6 +8,34 @@
   }
 }
 
+html.dark body {
+  background-color: #0f172a;
+  color: #e2e8f0;
+}
+
+html.dark header,
+html.dark footer,
+html.dark .bg-white,
+html.dark .bg-slate-50 { background-color: #1e293b; border-color: #334155; }
+
+html.dark .bg-slate-100 { background-color: #334155; }
+html.dark .bg-slate-900 { background-color: #020617; }
+html.dark .text-slate-900,
+html.dark .text-slate-800,
+html.dark .text-slate-700 { color: #f1f5f9; }
+html.dark .text-slate-600,
+html.dark .text-slate-500,
+html.dark .text-slate-400 { color: #94a3b8; }
+html.dark input,
+html.dark textarea,
+html.dark select { background-color: #0f172a; color: #f1f5f9; border-color: #475569; }
+html.dark .border-slate-200,
+html.dark .border-slate-100,
+html.dark .border-slate-800 { border-color: #334155; }
+html.dark .bg-teal-50 { background-color: #134e4a; }
+html.dark .text-teal-700,
+html.dark .text-teal-800 { color: #5eead4; }
+
 /* Custom subtle animations */
 @keyframes pulseGlow {
   0%, 100% {

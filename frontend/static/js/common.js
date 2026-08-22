@@ -174,5 +174,13 @@ function showEmergencyTriageModal(reasoning) {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
+  const themeToggle = document.getElementById("theme-toggle");
+  if (themeToggle) {
+    themeToggle.addEventListener("click", () => {
+      const isDark = document.documentElement.classList.toggle("dark");
+      localStorage.setItem("careconnect_theme", isDark ? "dark" : "light");
+      themeToggle.setAttribute("aria-label", isDark ? "Switch to light theme" : "Switch to dark theme");
+    });
+  }
   initNavbarAuth();
 });

@@ -13,16 +13,24 @@ import {
   LayoutDashboard,
   ShieldCheck,
   Menu,
-  X
+  X,
+  Moon,
+  Sun
 } from 'lucide-react';
 
 export default function Navbar() {
-  const { user, role, switchRole, logout, isDoctor } = useAuth();
+  const { user, role, logout, isDoctor } = useAuth();
   const [activeQueue, setActiveQueue] = useState(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [userDropdown, setUserDropdown] = useState(false);
+  const [darkTheme, setDarkTheme] = useState(() => localStorage.getItem('careconnect_theme') === 'dark');
   const navigate = useNavigate();
   const location = useLocation();
+
+  useEffect(() => {
+    document.documentElement.classList.toggle('dark', darkTheme);
+    localStorage.setItem('careconnect_theme', darkTheme ? 'dark' : 'light');
+  }, [darkTheme]);
 
   // Check if patient has an active queue entry
   useEffect(() => {
@@ -128,6 +136,15 @@ export default function Navbar() {
 
           {/* Right Action buttons */}
           <div className="hidden md:flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => setDarkTheme((current) => !current)}
+              className="p-2 rounded-xl text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors"
+              aria-label={darkTheme ? 'Switch to light theme' : 'Switch to dark theme'}
+              title="Switch theme"
+            >
+              {darkTheme ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+            </button>
             {isDoctor ? (
               <div className="flex items-center gap-2">
                 <Link
@@ -178,6 +195,14 @@ export default function Navbar() {
 
           {/* Mobile menu button */}
           <div className="flex md:hidden items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setDarkTheme((current) => !current)}
+              className="p-2 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100"
+              aria-label={darkTheme ? 'Switch to light theme' : 'Switch to dark theme'}
+            >
+              {darkTheme ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+            </button>
             {activeQueue && (
               <Link
                 to="/patient/queue"
@@ -213,16 +238,7 @@ export default function Navbar() {
           >
             My Queue Status
           </Link>
-          <Link
-            to="/doctor/dashboard"
-            onClick={() => {
-              switchRole('doctor');
-              setMenuOpen(false);
-            }}
-            className="block px-3 py-2 rounded-lg text-sm font-medium text-teal-700 hover:bg-teal-50"
-          >
-            Doctor Dashboard
-          </Link>
+          <Link to="/doctor/dashboard" onClick={() => setMenuOpen(false)} className="block px-3 py-2 rounded-lg text-sm font-medium text-teal-700 hover:bg-teal-50">Doctor Dashboard</Link>
           <Link
             to="/patient/profile"
             onClick={() => setMenuOpen(false)}

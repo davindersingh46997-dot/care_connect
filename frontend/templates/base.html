@@ -4,6 +4,9 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>{{ page_title | default("Care Connect — Real-time Local Healthcare Access & Queue Management") }}</title>
+  <script>
+    if (localStorage.getItem("careconnect_theme") === "dark") document.documentElement.classList.add("dark");
+  </script>
   <meta name="description" content="Know where to go. Know when to go. Discover registered healthcare providers and join real digital queues." />
   
   <!-- Google Fonts: Inter -->
@@ -77,8 +80,14 @@
         </nav>
 
         <!-- Right Auth Controls -->
-        <div id="navbar-auth-section" class="hidden md:flex items-center gap-2">
+        <div class="flex items-center gap-2">
+          <button id="theme-toggle" type="button" class="theme-toggle" aria-label="Switch to dark theme" title="Switch theme">
+            <i data-lucide="moon" class="theme-icon-dark w-4 h-4"></i>
+            <i data-lucide="sun" class="theme-icon-light w-4 h-4"></i>
+          </button>
+          <div id="navbar-auth-section" class="hidden md:flex items-center gap-2">
           <!-- Populated dynamically by common.js -->
+          </div>
         </div>
 
         <!-- Mobile Menu Toggle Button -->
