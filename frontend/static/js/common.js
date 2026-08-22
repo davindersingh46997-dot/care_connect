@@ -49,9 +49,6 @@ function renderAuthenticatedNav(desktopEl, mobileEl, user) {
   if (user.role === "DOCTOR") {
     dashboardHref = "/doctor/dashboard";
     dashboardLabel = "Doctor Workspace";
-  } else if (user.role === "ADMIN") {
-    dashboardHref = "/admin/dashboard";
-    dashboardLabel = "Admin Panel";
   }
 
   const html = `

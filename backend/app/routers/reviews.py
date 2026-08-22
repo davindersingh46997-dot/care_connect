@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from backend.app.database import get_db
 from backend.app.models.user import User, RoleEnum
-from backend.app.models.doctor import Doctor, AccountStatusEnum
+from backend.app.models.doctor import Doctor
 from backend.app.models.queue import QueueEntry, QueueStatusEnum
 from backend.app.models.review import Review
 from backend.app.schemas.review import ReviewCreateRequest, ReviewResponse
@@ -12,10 +12,9 @@ router = APIRouter(prefix="/api/doctors", tags=["Reviews"])
 
 @router.get("/{doctor_id}/reviews")
 def get_doctor_reviews(doctor_id: int, db: Session = Depends(get_db)):
-    """Retrieve all real reviews submitted by verified patients for a doctor."""
     doctor = db.query(Doctor).filter(Doctor.id == doctor_id).first()
-    if not doctor or doctor.account_status != AccountStatusEnum.APPROVED:
-        raise HTTPException(status_code=404, detail="Doctor not found or not approved.")
+    if not doctor:
+        raise HTTPException(status_code=404, detail="Doctor not found.")
 
     reviews = db.query(Review).filter(Review.doctor_id == doctor_id).order_by(Review.created_at.desc()).all()
     return [
@@ -37,8 +36,8 @@ def submit_doctor_review(
 ):
     """Submit a verified review. Strict requirement: Patient must have a COMPLETED consultation."""
     doctor = db.query(Doctor).filter(Doctor.id == doctor_id).first()
-    if not doctor or doctor.account_status != AccountStatusEnum.APPROVED:
-        raise HTTPException(status_code=404, detail="Doctor not found or not approved.")
+    if not doctor:
+        raise HTTPException(status_code=404, detail="Doctor not found.")
 
     # Verify queue entry belongs to this patient and doctor and is COMPLETED
     queue_entry = db.query(QueueEntry).filter(

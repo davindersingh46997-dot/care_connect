@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 from backend.app.database import get_db
 from backend.app.models.user import User, RoleEnum
-from backend.app.models.doctor import Doctor, AccountStatusEnum, ClinicStatusEnum
+from backend.app.models.doctor import Doctor, ClinicStatusEnum
 from backend.app.models.queue import QueueEntry, QueueStatusEnum
 from backend.app.schemas.queue import QueueJoinRequest, QueueActionRequest
 from backend.app.utils.dependencies import get_current_user, require_role
@@ -17,21 +17,14 @@ def join_digital_queue(
     current_user: User = Depends(require_role(RoleEnum.PATIENT)),
     db: Session = Depends(get_db)
 ):
-    """Patient joins the real digital queue for an open, approved clinic."""
     doctor = db.query(Doctor).filter(Doctor.id == payload.doctor_id).first()
-    if not doctor or doctor.account_status != AccountStatusEnum.APPROVED:
-        raise HTTPException(status_code=404, detail="Doctor not found or not approved.")
+    if not doctor:
+        raise HTTPException(status_code=404, detail="Doctor not found.")
 
     if doctor.clinic_status == ClinicStatusEnum.CLOSED:
-        raise HTTPException(
-            status_code=400,
-            detail="This clinic is currently closed and not accepting patients into the queue."
-        )
+        raise HTTPException(status_code=400, detail="This clinic is currently closed and not accepting patients into the queue.")
     if doctor.clinic_status == ClinicStatusEnum.PAUSED:
-        raise HTTPException(
-            status_code=400,
-            detail="This clinic has temporarily paused new queue entries. Please check back shortly."
-        )
+        raise HTTPException(status_code=400, detail="This clinic has temporarily paused new queue entries.")
 
     # Check for existing active queue entry for this patient & doctor
     existing_active = db.query(QueueEntry).filter(
@@ -194,10 +187,10 @@ def get_doctor_live_queue(
 ):
     """Doctor retrieves today's live queue desk."""
     doctor = db.query(Doctor).filter(Doctor.id == doctor_id).first()
-    if not doctor or doctor.account_status != AccountStatusEnum.APPROVED:
+    if not doctor:
         raise HTTPException(status_code=404, detail="Doctor not found.")
 
-    if doctor.user_id != current_user.id and current_user.role != RoleEnum.ADMIN:
+    if doctor.user_id != current_user.id:
         raise HTTPException(status_code=403, detail="Access denied. You can only view your own clinic queue.")
 
     entries = db.query(QueueEntry).filter(QueueEntry.doctor_id == doctor_id).all()
@@ -276,7 +269,7 @@ def doctor_call_next_patient(
 ):
     """Doctor advances the queue: current patient -> COMPLETED, next waiting -> CONSULTING."""
     doctor = db.query(Doctor).filter(Doctor.user_id == current_user.id).first()
-    if not doctor or doctor.account_status != AccountStatusEnum.APPROVED:
+    if not doctor:
         raise HTTPException(status_code=403, detail="Only registered doctors can manage queues.")
 
     now = datetime.now(timezone.utc)
@@ -323,7 +316,7 @@ def doctor_complete_consultation(
 ):
     """Doctor marks the active consultation as completed."""
     doctor = db.query(Doctor).filter(Doctor.user_id == current_user.id).first()
-    if not doctor or doctor.account_status != AccountStatusEnum.APPROVED:
+    if not doctor:
         raise HTTPException(status_code=403, detail="Only registered doctors can complete consultations.")
 
     current_consulting = db.query(QueueEntry).filter(
@@ -347,7 +340,7 @@ def doctor_skip_patient(
 ):
     """Doctor skips an absent patient."""
     doctor = db.query(Doctor).filter(Doctor.user_id == current_user.id).first()
-    if not doctor or doctor.account_status != AccountStatusEnum.APPROVED:
+    if not doctor:
         raise HTTPException(status_code=403, detail="Only doctors can skip queue entries.")
 
     if payload.queue_id:

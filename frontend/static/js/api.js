@@ -92,7 +92,7 @@ const CareConnectAPI = {
     register: (data) => CareConnectAPI.request("/api/doctors/register", { method: "POST", body: JSON.stringify(data) }),
     updateProfile: (id, data) => CareConnectAPI.request(`/api/doctors/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
     updateAvailability: (id, clinic_status) =>
-      CareConnectAPI.request(`/api/doctors/${id}/availability`, { method: "PATCH", body: JSON.stringify({ clinic_status }) })
+      CareConnectAPI.request(`/api/doctors/${id}/status`, { method: "PATCH", body: JSON.stringify({ clinic_status }) })
   },
 
   // Queue Endpoints
@@ -104,15 +104,6 @@ const CareConnectAPI = {
     complete: () => CareConnectAPI.request("/api/queue/complete", { method: "POST" }),
     skip: (data = {}) => CareConnectAPI.request("/api/queue/skip", { method: "POST", body: JSON.stringify(data) }),
     leave: () => CareConnectAPI.request("/api/queue/leave", { method: "POST" })
-  },
-
-  // Admin Endpoints
-  admin: {
-    getPendingDoctors: () => CareConnectAPI.request("/api/admin/doctors/pending"),
-    getAllDoctors: () => CareConnectAPI.request("/api/admin/doctors"),
-    approveDoctor: (id) => CareConnectAPI.request(`/api/admin/doctors/${id}/approve`, { method: "POST" }),
-    rejectDoctor: (id) => CareConnectAPI.request(`/api/admin/doctors/${id}/reject`, { method: "POST" }),
-    suspendDoctor: (id) => CareConnectAPI.request(`/api/admin/doctors/${id}/suspend`, { method: "POST" })
   },
 
   // Reviews
