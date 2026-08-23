@@ -29,6 +29,12 @@ export default function Navbar() {
     localStorage.setItem('careconnect_theme', darkTheme ? 'dark' : 'light');
   }, [darkTheme]);
 
+  useEffect(() => {
+    const handleThemeChange = (event) => setDarkTheme(event.detail.dark);
+    window.addEventListener('careconnect-theme-change', handleThemeChange);
+    return () => window.removeEventListener('careconnect-theme-change', handleThemeChange);
+  }, []);
+
   // Check if authenticated patient has an active queue entry
   useEffect(() => {
     let isMounted = true;

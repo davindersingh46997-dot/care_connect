@@ -29,6 +29,13 @@ async function fetchJson(url, options = {}) {
 }
 
 export const api = {
+  chat: {
+    send: (message) => fetchJson(`${API_BASE}/chat`, {
+      method: 'POST',
+      body: JSON.stringify({ message })
+    })
+  },
+
   // Health
   health: () => fetchJson(`${API_BASE}/health`),
 
@@ -92,14 +99,17 @@ export const api = {
     join: (data) =>
       fetchJson(`${API_BASE}/queue/join`, {
         method: 'POST',
-        body: JSON.stringify(data)
+        body: JSON.stringify({
+          ...data,
+          doctorId: data.doctorId || data.doctor_id
+        })
       }),
-    getDoctorQueue: (doctorId) =>
-      doctorId ? fetchJson(`${API_BASE}/queue/doctor/${doctorId}`) : fetchJson(`${API_BASE}/queue/doctor`),
-    getPatientQueue: () => fetchJson(`${API_BASE}/queue/patient`),
-    callNext: () =>
+    getDoctorQueue: (doctorId = 'doc-1') => fetchJson(`${API_BASE}/queue/${doctorId}`),
+    getPatientQueue: (patientId = 'patient-1') => fetchJson(`${API_BASE}/queue/patient/${patientId}`),
+    callNext: (data = {}) =>
       fetchJson(`${API_BASE}/queue/call-next`, {
-        method: 'POST'
+        method: 'POST',
+        body: JSON.stringify(data)
       }),
     complete: () =>
       fetchJson(`${API_BASE}/queue/complete`, {
@@ -110,9 +120,10 @@ export const api = {
         method: 'POST',
         body: JSON.stringify(data)
       }),
-    leave: () =>
+    leave: (data = {}) =>
       fetchJson(`${API_BASE}/queue/leave`, {
-        method: 'POST'
+        method: 'POST',
+        body: JSON.stringify(data)
       })
   },
 
