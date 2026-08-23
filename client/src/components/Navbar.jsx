@@ -41,7 +41,7 @@ export default function Navbar() {
     const fetchQueueStatus = async () => {
       if (isPatient && user?.id) {
         try {
-          const res = await api.queue.getPatientQueue();
+          const res = await api.queue.getPatientQueue(user.id);
           if (isMounted && res.has_active_queue) {
             setActiveQueue(res.active_queue);
           } else if (isMounted) {

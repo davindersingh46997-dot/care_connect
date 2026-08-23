@@ -105,7 +105,27 @@ export const api = {
         })
       }),
     getDoctorQueue: (doctorId = 'doc-1') => fetchJson(`${API_BASE}/queue/${doctorId}`),
-    getPatientQueue: (patientId = 'patient-1') => fetchJson(`${API_BASE}/queue/patient/${patientId}`),
+    getPatientQueue: async (patientId = 'patient-1') => {
+      const response = await fetchJson(`${API_BASE}/queue/patient/${patientId}`);
+      const activeQueue = response.active_queue ?? response.activeQueue;
+      const doctor = activeQueue?.doctor;
+      const normalizedActiveQueue = activeQueue ? {
+        ...activeQueue,
+        status: activeQueue.status?.toUpperCase(),
+        doctor_id: activeQueue.doctor_id || doctor?.id,
+        doctor_name: activeQueue.doctor_name || doctor?.name,
+        doctor_specialty: activeQueue.doctor_specialty || doctor?.specialty,
+        clinic_name: activeQueue.clinic_name || doctor?.clinic_name,
+        clinic_address: activeQueue.clinic_address || doctor?.address,
+        current_token_in_consultation: activeQueue.current_token_in_consultation ?? activeQueue.current_token
+      } : null;
+      return {
+        ...response,
+        has_active_queue: response.has_active_queue ?? response.hasActiveQueue,
+        active_queue: normalizedActiveQueue,
+        recent_visits: response.recent_visits ?? response.recentVisits
+      };
+    },
     callNext: (data = {}) =>
       fetchJson(`${API_BASE}/queue/call-next`, {
         method: 'POST',

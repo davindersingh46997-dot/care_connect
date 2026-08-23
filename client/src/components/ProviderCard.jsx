@@ -42,7 +42,12 @@ export default function ProviderCard({ doctor, isTopMatch = false }) {
     setJoinError(null);
 
     try {
-      await api.queue.join({ doctor_id: doctor.id });
+      await api.queue.join({
+        doctor_id: doctor.id,
+        patientId: user.id,
+        patientName: user.name,
+        patientPhone: user.phone
+      });
 
       try {
         confetti({

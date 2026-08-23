@@ -55,6 +55,13 @@
       "age": 18,
       "location": "Bengaluru",
       "created_at": "2026-08-23T00:31:41.643Z"
+    },
+    {
+      "id": "patient-1787446141959",
+      "name": "Guest Patient",
+      "email": "surabi@gmail.com",
+      "role": "patient",
+      "created_at": "2026-08-23T00:49:01.959Z"
     }
   ],
   "doctors": [
@@ -471,6 +478,29 @@
       "image_url": "https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?w=400&auto=format&fit=crop&q=80",
       "current_token": 3,
       "is_accepting": true
+    },
+    {
+      "id": "doc-19",
+      "user_id": "doctor-19",
+      "name": "Dr. Surabi",
+      "specialty": "General Physician",
+      "experience": 6,
+      "qualification": "MBBS",
+      "fee": 200,
+      "clinic_name": "Surabi Clinic",
+      "address": "Koramangala 8th Block, Bengaluru",
+      "latitude": 30.6806,
+      "longitude": 76.6054,
+      "rating": 1,
+      "reviews_count": 0,
+      "verified": true,
+      "status": "open",
+      "working_hours": "09:00 AM - 05:00 PM",
+      "avg_consult_time_mins": 7,
+      "bio": "Primary care walk-in doctor for common cough, headaches, minor injuries, and prescription refills.",
+      "image_url": "",
+      "current_token": 3,
+      "is_accepting": true
     }
   ],
   "queues": [
@@ -568,6 +598,18 @@
       "token_number": 17,
       "status": "waiting",
       "joined_at": "2026-08-23T00:32:29.010Z",
+      "called_at": null,
+      "completed_at": null
+    },
+    {
+      "id": "q-1787445466320",
+      "doctor_id": "doc-1",
+      "patient_id": "patient-1787445101642",
+      "patient_name": "Jashandeep Singh",
+      "patient_phone": "+91 98765 43210",
+      "token_number": 18,
+      "status": "waiting",
+      "joined_at": "2026-08-23T00:37:46.320Z",
       "called_at": null,
       "completed_at": null
     }

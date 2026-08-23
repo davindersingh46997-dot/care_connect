@@ -44,7 +44,7 @@ export default function PatientQueuePage() {
   const fetchLiveQueue = async (isManual = false) => {
     if (isManual) setRefreshing(true);
     try {
-      const res = await api.queue.getPatientQueue();
+      const res = await api.queue.getPatientQueue(user?.id);
       if (res.has_active_queue) {
         setQueueData(res.active_queue);
 

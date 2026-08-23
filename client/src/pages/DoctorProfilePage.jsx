@@ -78,7 +78,10 @@ export default function DoctorProfilePage() {
 
     try {
       const res = await api.queue.join({
-        doctor_id: doctor.id
+        doctor_id: doctor.id,
+        patientId: user.id,
+        patientName: user.name,
+        patientPhone: user.phone
       });
 
       try {
