@@ -27,11 +27,21 @@ export default function DoctorSearchPage() {
   const queryParam = searchParams.get('q') || '';
   const specialtyParam = searchParams.get('specialty') || '';
   const reasoningParam = searchParams.get('reasoning') || '';
+  const latParam = searchParams.get('lat') || searchParams.get('latitude') || '';
+  const lngParam = searchParams.get('lng') || searchParams.get('longitude') || '';
 
   const [searchQuery, setSearchQuery] = useState(queryParam);
-  const [specialty, setSpecialty] = useState(specialtyParam);
+  const [specialty, setSpecialty] = useState(specialtyParam || 'All Specialties');
   const [aiReasoning, setAiReasoning] = useState(reasoningParam);
   const [priority, setPriority] = useState('best_match'); // 'best_match' | 'fastest' | 'nearest' | 'cheapest' | 'highest_rated'
+
+  const [userCoords, setUserCoords] = useState(
+    latParam && lngParam ? { lat: Number(latParam), lng: Number(lngParam) } : null
+  );
+  const [locating, setLocating] = useState(false);
+  const [locationMsg, setLocationMsg] = useState(
+    latParam && lngParam ? `Location: ${Number(latParam).toFixed(2)}, ${Number(lngParam).toFixed(2)}` : ''
+  );
 
   const [maxDistance, setMaxDistance] = useState('');
   const [maxFee, setMaxFee] = useState('');
@@ -56,7 +66,35 @@ export default function DoctorSearchPage() {
     'Gynecology'
   ];
 
-  // Fetch doctors whenever filters or priority change
+  const handleUseLocation = () => {
+    if (!navigator.geolocation) {
+      setLocationMsg('Geolocation is not supported by your browser.');
+      return;
+    }
+    setLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const lat = Number(pos.coords.latitude.toFixed(4));
+        const lng = Number(pos.coords.longitude.toFixed(4));
+        setUserCoords({ lat, lng });
+        setLocationMsg(`Location: ${lat}, ${lng}`);
+        setLocating(false);
+
+        // Update search params
+        const newParams = new URLSearchParams(searchParams);
+        newParams.set('lat', lat);
+        newParams.set('lng', lng);
+        setSearchParams(newParams);
+      },
+      (err) => {
+        setLocating(false);
+        setLocationMsg('Location access was not granted.');
+      },
+      { timeout: 10000 }
+    );
+  };
+
+  // Fetch doctors whenever filters, priority, or coordinates change
   const fetchDoctors = async () => {
     setLoading(true);
     try {
@@ -66,7 +104,9 @@ export default function DoctorSearchPage() {
         maxFee,
         maxDistance,
         onlyOpen: onlyOpen ? 'true' : 'false',
-        minRating
+        minRating,
+        lat: userCoords?.lat,
+        lng: userCoords?.lng
       });
 
       setDoctors(res.doctors || []);
@@ -79,7 +119,7 @@ export default function DoctorSearchPage() {
 
   useEffect(() => {
     fetchDoctors();
-  }, [specialty, priority, maxDistance, maxFee, onlyOpen, minRating]);
+  }, [specialty, priority, maxDistance, maxFee, onlyOpen, minRating, userCoords]);
 
   // Handle Intent Search submission
   const handleIntentSearch = async (e) => {
@@ -101,17 +141,19 @@ export default function DoctorSearchPage() {
 
       setSpecialty(res.specialty);
       setAiReasoning(res.reasoning || '');
-      setSearchParams({
-        q: searchQuery.trim(),
-        specialty: res.specialty,
-        reasoning: res.reasoning || ''
-      });
+
+      const newParams = new URLSearchParams(searchParams);
+      newParams.set('q', searchQuery.trim());
+      newParams.set('specialty', res.specialty);
+      if (res.reasoning) newParams.set('reasoning', res.reasoning);
+      setSearchParams(newParams);
     } catch (err) {
       console.error('AI Classification error:', err);
     } finally {
       setAiLoading(false);
     }
   };
+
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">

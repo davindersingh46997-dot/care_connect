@@ -10,12 +10,12 @@ import DoctorSearchPage from './pages/DoctorSearchPage';
 import DoctorProfilePage from './pages/DoctorProfilePage';
 import PatientQueuePage from './pages/PatientQueuePage';
 import PatientProfilePage from './pages/PatientProfilePage';
+import PatientSignupPage from './pages/PatientSignupPage';
+import DoctorRegisterPage from './pages/DoctorRegisterPage';
 import DoctorDashboardPage from './pages/DoctorDashboardPage';
 import DoctorQueueManagerPage from './pages/DoctorQueueManagerPage';
 import DoctorProfileEditPage from './pages/DoctorProfileEditPage';
-import DoctorLoginPage from './pages/DoctorLoginPage';
 import LoginPage from './pages/LoginPage';
-import RegisterPage from './pages/RegisterPage';
 
 export default function App() {
   return (
@@ -25,23 +25,32 @@ export default function App() {
           <Navbar />
           <main className="flex-1">
             <Routes>
-              {/* Patient Routes */}
+              {/* Public & Patient Routes */}
               <Route path="/" element={<LandingPage />} />
+              <Route path="/how-it-works" element={<LandingPage />} />
+              <Route path="/doctors" element={<DoctorSearchPage />} />
+              <Route path="/search" element={<DoctorSearchPage />} />
               <Route path="/patient/search" element={<DoctorSearchPage />} />
               <Route path="/patient/doctors" element={<DoctorSearchPage />} />
+              <Route path="/doctors/:id" element={<DoctorProfilePage />} />
               <Route path="/patient/doctors/:id" element={<DoctorProfilePage />} />
               <Route path="/patient/queue" element={<PatientQueuePage />} />
+              <Route path="/patient/dashboard" element={<PatientQueuePage />} />
               <Route path="/patient/profile" element={<PatientProfilePage />} />
 
-              {/* Doctor Routes */}
-              <Route path="/doctor/login" element={<DoctorLoginPage />} />
+              {/* Doctor Registration & Workspace Routes */}
+              <Route path="/doctor/register" element={<DoctorRegisterPage />} />
+              <Route path="/for-doctors" element={<Navigate to="/doctor/register" replace />} />
               <Route path="/doctor/dashboard" element={<DoctorDashboardPage />} />
               <Route path="/doctor/queue" element={<DoctorQueueManagerPage />} />
               <Route path="/doctor/profile" element={<DoctorProfileEditPage />} />
 
               {/* Auth Routes */}
               <Route path="/login" element={<LoginPage />} />
-              <Route path="/register" element={<RegisterPage />} />
+              <Route path="/doctor/login" element={<LoginPage />} />
+              <Route path="/patient/signup" element={<PatientSignupPage />} />
+              <Route path="/signup" element={<PatientSignupPage />} />
+              <Route path="/register" element={<PatientSignupPage />} />
 
               {/* Catch-all */}
               <Route path="*" element={<Navigate to="/" replace />} />
@@ -53,3 +62,4 @@ export default function App() {
     </AuthProvider>
   );
 }
+

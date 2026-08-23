@@ -21,6 +21,7 @@ class UserResponse(BaseModel):
     age: Optional[int] = None
     latitude: Optional[float] = None
     longitude: Optional[float] = None
+    doctor: Optional[dict] = None
 
     model_config = {"from_attributes": True}
 
@@ -28,3 +29,4 @@ class TokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
     user: UserResponse
+

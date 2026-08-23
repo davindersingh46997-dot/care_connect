@@ -4,8 +4,10 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 from backend.app.database import get_db
 from backend.app.models.user import User, RoleEnum
+from backend.app.models.patient import Patient
 from backend.app.models.doctor import Doctor, ClinicStatusEnum
 from backend.app.models.queue import QueueEntry, QueueStatusEnum
+
 from backend.app.schemas.queue import QueueJoinRequest, QueueActionRequest
 from backend.app.utils.dependencies import get_current_user, require_role
 
@@ -48,14 +50,20 @@ def join_digital_queue(
 
     new_token = max_token + 1
 
+    patient_phone_val = payload.patient_phone
+    if not patient_phone_val:
+        patient_profile = db.query(Patient).filter(Patient.user_id == current_user.id).first()
+        patient_phone_val = patient_profile.phone if patient_profile else None
+
     entry = QueueEntry(
         doctor_id=doctor.id,
         patient_id=current_user.id,
         patient_name=payload.patient_name or current_user.name,
-        patient_phone=payload.patient_phone or current_user.phone,
+        patient_phone=patient_phone_val,
         token_number=new_token,
         status=QueueStatusEnum.WAITING
     )
+
     db.add(entry)
     db.commit()
     db.refresh(entry)
@@ -179,21 +187,27 @@ def get_patient_live_queue(
         }
     }
 
+@router.get("/doctor")
 @router.get("/doctor/{doctor_id}")
 def get_doctor_live_queue(
-    doctor_id: int,
+    doctor_id: int | None = None,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """Doctor retrieves today's live queue desk."""
-    doctor = db.query(Doctor).filter(Doctor.id == doctor_id).first()
+    if doctor_id is None:
+        doctor = db.query(Doctor).filter(Doctor.user_id == current_user.id).first()
+    else:
+        doctor = db.query(Doctor).filter(Doctor.id == doctor_id).first()
+
     if not doctor:
         raise HTTPException(status_code=404, detail="Doctor not found.")
 
     if doctor.user_id != current_user.id:
         raise HTTPException(status_code=403, detail="Access denied. You can only view your own clinic queue.")
 
-    entries = db.query(QueueEntry).filter(QueueEntry.doctor_id == doctor_id).all()
+
+    entries = db.query(QueueEntry).filter(QueueEntry.doctor_id == doctor.id).all()
 
     consulting = next((e for e in entries if e.status == QueueStatusEnum.CONSULTING), None)
     waiting = sorted(

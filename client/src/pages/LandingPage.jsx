@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useEffect, useState } from 'react';
+import { useLocation, useNavigate, Link } from 'react-router-dom';
 import {
   Search,
   MapPin,
@@ -18,26 +18,69 @@ import {
   Eye,
   Activity,
   ChevronRight,
+  Navigation,
   AlertCircle
 } from 'lucide-react';
 import SafetyDisclaimer from '../components/SafetyDisclaimer';
 import EmergencyModal from '../components/EmergencyModal';
 import { api } from '../services/api';
-import { useAuth } from '../context/AuthContext';
 
 export default function LandingPage() {
   const [prompt, setPrompt] = useState('');
   const [loading, setLoading] = useState(false);
   const [emergencyData, setEmergencyData] = useState(null);
-  const [selectedCity, setSelectedCity] = useState('Bengaluru (Bellandur / HSR / Koramangala)');
+
+  // Geolocation state
+  const [userCoords, setUserCoords] = useState(null);
+  const [locationLabel, setLocationLabel] = useState('');
+  const [locating, setLocating] = useState(false);
+  const [locationError, setLocationError] = useState(null);
+
+  const location = useLocation();
   const navigate = useNavigate();
-  const { switchRole } = useAuth();
+
+  useEffect(() => {
+    if (!location.hash) return;
+    const target = document.getElementById(location.hash.slice(1));
+    target?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, [location.hash]);
+
+  const handleUseCurrentLocation = () => {
+    if (!navigator.geolocation) {
+      setLocationError('Geolocation is not supported by your browser.');
+      return;
+    }
+
+    setLocating(true);
+    setLocationError(null);
+
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const lat = Number(pos.coords.latitude.toFixed(4));
+        const lng = Number(pos.coords.longitude.toFixed(4));
+        setUserCoords({ lat, lng });
+        setLocationLabel(`Current Location (${lat}, ${lng})`);
+        setLocating(false);
+      },
+      (err) => {
+        setLocating(false);
+        setLocationError('Location access was not granted. You can still search doctors without GPS.');
+      },
+      { timeout: 10000 }
+    );
+  };
 
   const handleSearchSubmit = async (e) => {
     e?.preventDefault();
     const query = prompt.trim();
+
+    const searchParams = new URLSearchParams();
+    if (query) searchParams.append('q', query);
+    if (userCoords?.lat) searchParams.append('lat', userCoords.lat);
+    if (userCoords?.lng) searchParams.append('lng', userCoords.lng);
+
     if (!query) {
-      navigate('/patient/doctors');
+      navigate(`/doctors?${searchParams.toString()}`);
       return;
     }
 
@@ -50,15 +93,17 @@ export default function LandingPage() {
         return;
       }
 
-      // Navigate to doctor search with AI matched specialty
-      navigate(
-        `/patient/doctors?q=${encodeURIComponent(query)}&specialty=${encodeURIComponent(
-          res.specialty
-        )}&reasoning=${encodeURIComponent(res.reasoning || '')}`
-      );
+      if (res.specialty) {
+        searchParams.append('specialty', res.specialty);
+      }
+      if (res.reasoning) {
+        searchParams.append('reasoning', res.reasoning);
+      }
+
+      navigate(`/doctors?${searchParams.toString()}`);
     } catch (err) {
       console.error(err);
-      navigate(`/patient/doctors?q=${encodeURIComponent(query)}`);
+      navigate(`/doctors?${searchParams.toString()}`);
     } finally {
       setLoading(false);
     }
@@ -75,51 +120,43 @@ export default function LandingPage() {
     {
       name: 'General Physician',
       icon: Activity,
-      desc: 'Viral fever, body aches, colds & general checkups',
-      count: '14+ doctors'
+      desc: 'Viral fever, body aches, colds & general checkups'
     },
     {
       name: 'Dermatology',
       icon: Sparkles,
       desc: 'Skin rashes, acne, allergies, itching & hair care',
-      count: '12+ doctors',
       featured: true
     },
     {
       name: 'Dentistry',
       icon: Smile,
-      desc: 'Toothache, cavities, root canal & dental hygiene',
-      count: '8+ doctors'
+      desc: 'Toothache, cavities, root canal & dental hygiene'
     },
     {
       name: 'Orthopedics',
       icon: Bone,
-      desc: 'Joint pain, knee discomfort, fractures & backache',
-      count: '9+ doctors'
+      desc: 'Joint pain, knee discomfort, fractures & backache'
     },
     {
       name: 'Pediatrics',
       icon: Baby,
-      desc: 'Child healthcare, vaccinations, toddler wellness',
-      count: '10+ doctors'
+      desc: 'Child healthcare, vaccinations, toddler wellness'
     },
     {
       name: 'Cardiology',
       icon: Heart,
-      desc: 'Heart checks, blood pressure, ECG & lipid control',
-      count: '6+ doctors'
+      desc: 'Heart checks, blood pressure, ECG & lipid control'
     },
     {
       name: 'ENT',
       icon: Stethoscope,
-      desc: 'Sinus, earache, throat infection, tonsil care',
-      count: '7+ doctors'
+      desc: 'Sinus, earache, throat infection, tonsil care'
     },
     {
       name: 'Gynecology',
       icon: Users,
-      desc: "Women's wellness, PCOS, prenatal, cycle care",
-      count: '8+ doctors'
+      desc: "Women's wellness, PCOS, prenatal, cycle care"
     }
   ];
 
@@ -132,31 +169,29 @@ export default function LandingPage() {
       />
 
       {/* Hero Section */}
-      <section className="relative pt-8 pb-12 overflow-hidden bg-gradient-to-b from-teal-50/50 via-slate-50 to-white border-b border-slate-200/70">
+      <section className="relative pt-12 pb-16 overflow-hidden bg-gradient-to-b from-teal-50/60 via-slate-50 to-white border-b border-slate-200/70">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center max-w-3xl mx-auto space-y-4">
-            {/* Navigation Badge */}
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-teal-100/80 text-teal-800 text-xs font-semibold border border-teal-200 shadow-2xs">
+            {/* Tagline Badge */}
+            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-teal-100/80 text-teal-800 text-xs font-bold border border-teal-200 shadow-2xs">
               <Sparkles className="w-3.5 h-3.5 text-teal-600" />
-              <span>✨ Smart Healthcare Navigation</span>
-              <span className="text-teal-400">•</span>
-              <span className="text-teal-900 font-medium">Real-Time Digital Queue</span>
+              <span>Real-Time Healthcare Discovery & Waiting Queues</span>
             </div>
 
             {/* Headline */}
-            <h1 className="text-3xl sm:text-5xl font-extrabold text-slate-900 tracking-tight leading-tight">
+            <h1 className="text-3xl sm:text-5xl lg:text-6xl font-extrabold text-slate-900 tracking-tight leading-tight">
               Find the right doctor.{' '}
-              <span className="text-teal-600 block sm:inline">Without the long wait.</span>
+              <span className="text-teal-600 block sm:inline">Know when you'll be seen.</span>
             </h1>
 
             {/* Subheading */}
             <p className="text-sm sm:text-base text-slate-600 max-w-2xl mx-auto leading-relaxed">
-              Discover suitable healthcare providers near you based on your concern, location, consultation fee, availability, and real-time digital queue waiting times.
+              Discover registered healthcare providers near you. Check consultation fees, real-time waiting queues, and join digital clinic lines remotely.
             </p>
           </div>
 
           {/* Primary Search Container */}
-          <div className="max-w-3xl mx-auto mt-8 bg-white p-4 sm:p-5 rounded-3xl shadow-xl border border-slate-200/90 relative">
+          <div className="max-w-3xl mx-auto mt-8 bg-white p-4 sm:p-6 rounded-3xl shadow-xl border border-slate-200/90 relative">
             <form onSubmit={handleSearchSubmit} className="space-y-3">
               {/* Concern Input */}
               <div className="relative">
@@ -172,27 +207,39 @@ export default function LandingPage() {
                 />
               </div>
 
-              {/* Location & Submit Actions */}
-              <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-1">
-                <div className="flex items-center gap-2 text-xs text-slate-600 w-full sm:w-auto bg-slate-100/80 px-3.5 py-2.5 rounded-xl border border-slate-200/60">
-                  <MapPin className="w-4 h-4 text-teal-600 shrink-0" />
-                  <span className="truncate font-medium">{selectedCity}</span>
-                </div>
+              {/* Location & Action Buttons */}
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-1">
+                <button
+                  type="button"
+                  onClick={handleUseCurrentLocation}
+                  disabled={locating}
+                  className={`flex items-center justify-center gap-2 px-3.5 py-2.5 rounded-xl border text-xs font-semibold transition-all ${
+                    userCoords
+                      ? 'bg-teal-50 text-teal-800 border-teal-300 font-bold'
+                      : 'bg-slate-100/80 text-slate-700 border-slate-200 hover:bg-slate-200'
+                  }`}
+                  title="Care Connect uses your location to find nearby healthcare providers."
+                >
+                  <Navigation className={`w-4 h-4 text-teal-600 shrink-0 ${locating ? 'animate-spin' : ''}`} />
+                  <span>
+                    {locating ? 'Accessing location...' : locationLabel || 'Use my current location'}
+                  </span>
+                </button>
 
-                <div className="flex items-center gap-2 w-full sm:w-auto">
+                <div className="flex items-center gap-2">
                   <button
                     type="submit"
                     disabled={loading}
-                    className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 rounded-2xl bg-teal-600 hover:bg-teal-700 text-white font-bold text-sm shadow-md hover:shadow-teal-500/25 active:scale-95 transition-all disabled:opacity-75"
+                    className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 rounded-2xl bg-teal-600 hover:bg-teal-700 text-white font-extrabold text-xs sm:text-sm shadow-md hover:shadow-teal-500/25 active:scale-95 transition-all disabled:opacity-75"
                   >
                     {loading ? (
                       <>
                         <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                        <span>Understanding concern...</span>
+                        <span>Searching...</span>
                       </>
                     ) : (
                       <>
-                        <span>Find the Right Doctor</span>
+                        <span>Find a Doctor</span>
                         <ArrowRight className="w-4 h-4" />
                       </>
                     )}
@@ -201,7 +248,13 @@ export default function LandingPage() {
               </div>
             </form>
 
-            {/* Quick Example Pills */}
+            {locationError && (
+              <p className="mt-2 text-xs text-amber-800 bg-amber-50 p-2.5 rounded-xl border border-amber-200">
+                {locationError}
+              </p>
+            )}
+
+            {/* Quick Example Concerns */}
             <div className="mt-4 pt-3 border-t border-slate-100">
               <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-2">
                 Or try an example concern:
@@ -221,12 +274,6 @@ export default function LandingPage() {
                 ))}
               </div>
             </div>
-
-            {/* Micro disclaimer */}
-            <div className="mt-3 text-[11px] text-slate-400 flex items-center justify-between">
-              <span>✨ Smart intent-based matching (Not a diagnostic prescription)</span>
-              <span className="text-teal-700 font-medium">18+ Local Clinics Live</span>
-            </div>
           </div>
 
           <div className="max-w-3xl mx-auto mt-4">
@@ -239,10 +286,10 @@ export default function LandingPage() {
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center max-w-2xl mx-auto mb-10 space-y-2">
           <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
-            What kind of care are you looking for?
+            Browse by Medical Specialty
           </h2>
           <p className="text-xs sm:text-sm text-slate-500">
-            Select a specialty to discover top-rated nearby doctors and their real-time waiting queues.
+            Select a specialty to discover registered practitioners and their real-time waiting queues.
           </p>
         </div>
 
@@ -252,7 +299,7 @@ export default function LandingPage() {
             return (
               <div
                 key={idx}
-                onClick={() => navigate(`/patient/doctors?specialty=${encodeURIComponent(spec.name)}`)}
+                onClick={() => navigate(`/doctors?specialty=${encodeURIComponent(spec.name)}${userCoords ? `&lat=${userCoords.lat}&lng=${userCoords.lng}` : ''}`)}
                 className={`p-5 rounded-2xl border transition-all duration-200 cursor-pointer group flex flex-col justify-between ${
                   spec.featured
                     ? 'bg-gradient-to-b from-teal-50/40 to-white border-teal-300 shadow-xs hover:shadow-md'
@@ -269,7 +316,7 @@ export default function LandingPage() {
                   <p className="text-xs text-slate-500 mt-1 leading-relaxed">{spec.desc}</p>
                 </div>
                 <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs font-semibold text-teal-700">
-                  <span>{spec.count}</span>
+                  <span>View Doctors</span>
                   <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                 </div>
               </div>
@@ -283,7 +330,7 @@ export default function LandingPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center max-w-2xl mx-auto mb-12 space-y-2">
             <span className="text-xs font-bold uppercase tracking-widest text-teal-400">
-              Transparent Access
+              Transparent Healthcare Access
             </span>
             <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
               Know where to go. Know when to go.
@@ -303,17 +350,17 @@ export default function LandingPage() {
               {
                 step: '02',
                 title: 'Specialty Matching',
-                desc: 'Smart navigation suggests the appropriate medical specialty category.'
+                desc: 'Smart navigation directs you to the appropriate certified specialty.'
               },
               {
                 step: '03',
-                title: 'Smart Provider Ranking',
-                desc: 'Rank nearby doctors by distance, fee, rating, and live waiting time.'
+                title: 'Real-Time Provider Ranking',
+                desc: 'Rank nearby registered doctors by distance, fee, rating, and live queue status.'
               },
               {
                 step: '04',
                 title: 'Digital Queue & Visit',
-                desc: 'Join the queue remotely, track your token live, and arrive right on time.'
+                desc: 'Join the queue, track your token live, and arrive right when your turn is ready.'
               }
             ].map((item, idx) => (
               <div
@@ -362,16 +409,13 @@ export default function LandingPage() {
             </div>
 
             <div className="pt-4 flex flex-wrap items-center gap-3">
-              <button
-                onClick={() => {
-                  switchRole('doctor');
-                  navigate('/doctor/dashboard');
-                }}
+              <Link
+                to="/doctor/register"
                 className="px-6 py-3 rounded-2xl bg-teal-500 hover:bg-teal-400 text-slate-950 font-bold text-xs sm:text-sm shadow-md transition-all flex items-center gap-2"
               >
-                <span>Launch Doctor Portal</span>
+                <span>Join Care Connect as a Doctor</span>
                 <ArrowRight className="w-4 h-4" />
-              </button>
+              </Link>
             </div>
           </div>
         </div>
@@ -419,3 +463,4 @@ export default function LandingPage() {
     </div>
   );
 }
+
