@@ -1,4 +1,5 @@
 import os
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -11,10 +12,16 @@ from backend.app.database import ensure_database_schema
 # Routers
 from backend.app.routers import auth, doctors, queue, ai, reviews, patients
 
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    ensure_database_schema()
+    yield
+
 app = FastAPI(
     title=settings.APP_NAME,
     description="Care Connect patient and doctor healthcare access platform",
-    version="2.0.0"
+    version="2.0.0",
+    lifespan=lifespan
 )
 
 app.add_middleware(
@@ -25,16 +32,13 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-@app.on_event("startup")
-def on_startup():
-    ensure_database_schema()
-
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 STATIC_DIR = os.path.join(BASE_DIR, "frontend", "static")
 TEMPLATES_DIR = os.path.join(BASE_DIR, "frontend", "templates")
 
-app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
-templates = Jinja2Templates(directory=TEMPLATES_DIR)
+if os.path.exists(STATIC_DIR):
+    app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+templates = Jinja2Templates(directory=TEMPLATES_DIR) if os.path.exists(TEMPLATES_DIR) else None
 
 app.include_router(auth.router)
 app.include_router(doctors.router)
@@ -47,11 +51,10 @@ app.include_router(patients.router)
 def health_check():
     ensure_database_schema()
     return {
-        "status": "healthy",
-        "app": settings.APP_NAME,
-        "database": "SQLite",
-        "version": "2.0.0"
+        "status": "ok",
+        "service": "Care Connect API"
     }
+
 
 @app.get("/", response_class=HTMLResponse)
 def page_landing(request: Request):

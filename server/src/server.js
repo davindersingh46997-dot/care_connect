@@ -5,6 +5,7 @@ import aiRoutes from './routes/aiRoutes.js';
 import doctorRoutes from './routes/doctorRoutes.js';
 import queueRoutes from './routes/queueRoutes.js';
 import authRoutes from './routes/authRoutes.js';
+import chatRoutes from './routes/chatRoutes.js';
 
 dotenv.config();
 
@@ -42,6 +43,7 @@ app.use('/api/ai', aiRoutes);
 app.use('/api/doctors', doctorRoutes);
 app.use('/api/queue', queueRoutes);
 app.use('/api/auth', authRoutes);
+app.use('/api/chat', chatRoutes);
 
 // 404 handler
 app.use((req, res) => {

@@ -13,76 +13,101 @@ import {
   AlertCircle,
   Bell,
   Check,
-  User
+  User,
+  Building2
 } from 'lucide-react';
 import { api } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import confetti from 'canvas-confetti';
 
 export default function DoctorQueueManagerPage() {
-  const { user } = useAuth();
+  const { user, doctorInfo, isDoctor, isAuthenticated } = useAuth();
+  const navigate = useNavigate();
+
   const [queueData, setQueueData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [callingNext, setCallingNext] = useState(false);
+  const [completing, setCompleting] = useState(false);
   const [actionMessage, setActionMessage] = useState(null);
-
-  const doctorId = 'doc-1'; // Dr. Raj Sharma
+  const [actionError, setActionError] = useState(null);
 
   const fetchLiveQueue = async () => {
     try {
-      const res = await api.queue.getDoctorQueue(doctorId);
+      const res = await api.queue.getDoctorQueue();
       setQueueData(res);
     } catch (err) {
-      console.error(err);
+      console.warn('Error fetching doctor queue:', err);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
+    if (!isAuthenticated && !loading) {
+      navigate('/login?redirect=/doctor/queue');
+      return;
+    }
+    if (isAuthenticated && !isDoctor) {
+      navigate('/patient/dashboard');
+      return;
+    }
+
     fetchLiveQueue();
-    const interval = setInterval(fetchLiveQueue, 2500); // Fast live polling
+    const interval = setInterval(fetchLiveQueue, 3000); // Live sync polling
     return () => clearInterval(interval);
-  }, []);
+  }, [isAuthenticated, isDoctor]);
 
   const handleCallNext = async () => {
     setCallingNext(true);
     setActionMessage(null);
-    try {
-      const res = await api.queue.callNext(doctorId);
-      setActionMessage(res.message);
+    setActionError(null);
 
-      confetti({
-        particleCount: 60,
-        spread: 50,
-        origin: { y: 0.5 }
-      });
+    try {
+      const res = await api.queue.callNext();
+      setActionMessage(res.message || 'Called next patient.');
+
+      try {
+        confetti({
+          particleCount: 60,
+          spread: 50,
+          origin: { y: 0.5 }
+        });
+      } catch (_) {}
 
       await fetchLiveQueue();
     } catch (err) {
-      console.error(err);
+      setActionError(err.message || 'Could not call next patient.');
     } finally {
       setCallingNext(false);
     }
   };
 
   const handleComplete = async () => {
+    setCompleting(true);
+    setActionMessage(null);
+    setActionError(null);
+
     try {
-      const res = await api.queue.complete(doctorId);
-      setActionMessage(res.message);
+      const res = await api.queue.complete();
+      setActionMessage(res.message || 'Consultation completed.');
       await fetchLiveQueue();
     } catch (err) {
-      console.error(err);
+      setActionError(err.message || 'Failed to complete consultation.');
+    } finally {
+      setCompleting(false);
     }
   };
 
   const handleSkip = async (queueId) => {
+    setActionMessage(null);
+    setActionError(null);
+
     try {
-      const res = await api.queue.skip({ queueId, doctorId });
-      setActionMessage(res.message);
+      const res = await api.queue.skip({ queue_id: queueId });
+      setActionMessage(res.message || 'Patient skipped.');
       await fetchLiveQueue();
     } catch (err) {
-      console.error(err);
+      setActionError(err.message || 'Failed to skip patient.');
     }
   };
 
@@ -95,11 +120,10 @@ export default function DoctorQueueManagerPage() {
     );
   }
 
-  const doctor = queueData?.doctor;
+  const doctor = queueData?.doctor || doctorInfo;
   const consulting = queueData?.consulting;
   const waiting = queueData?.waiting || [];
   const completed = queueData?.completed || [];
-  const skipped = queueData?.skipped || [];
 
   return (
     <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
@@ -113,10 +137,10 @@ export default function DoctorQueueManagerPage() {
             </span>
           </div>
           <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight mt-0.5">
-            {doctor?.name || 'Dr. Raj Sharma'} — Clinic Queue
+            {doctor?.name || user?.name} — Clinic Queue
           </h1>
           <p className="text-xs text-slate-500">
-            {doctor?.clinic_name} • Current Serving Token: <strong className="text-slate-900">#{queueData?.overview?.currentToken || 14}</strong>
+            {doctor?.clinic_name} • Status: <strong className="text-slate-900">{doctor?.clinic_status || 'OPEN'}</strong>
           </p>
         </div>
 
@@ -144,6 +168,13 @@ export default function DoctorQueueManagerPage() {
         </div>
       )}
 
+      {actionError && (
+        <div className="p-3.5 rounded-2xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-semibold flex items-center justify-between animate-in fade-in">
+          <span>⚠️ {actionError}</span>
+          <button onClick={() => setActionError(null)} className="text-rose-700 hover:text-rose-900 font-bold">✕</button>
+        </div>
+      )}
+
       {/* Main Active Consulting Patient Card */}
       <div className="bg-gradient-to-br from-slate-900 to-teal-950 rounded-3xl p-6 sm:p-8 text-white shadow-xl space-y-6">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
@@ -165,12 +196,14 @@ export default function DoctorQueueManagerPage() {
               </div>
               <div>
                 <h3 className="text-xl font-black text-white">{consulting.patient_name}</h3>
-                <p className="text-xs text-teal-200 font-medium flex items-center gap-2 mt-0.5">
-                  <Phone className="w-3.5 h-3.5 text-teal-300" />
-                  {consulting.patient_phone || 'Demo Patient Phone'}
-                </p>
+                {consulting.patient_phone && (
+                  <p className="text-xs text-teal-200 font-medium flex items-center gap-1.5 mt-0.5">
+                    <Phone className="w-3.5 h-3.5 text-teal-300" />
+                    {consulting.patient_phone}
+                  </p>
+                )}
                 <span className="inline-block text-[10px] font-semibold text-emerald-300 bg-emerald-950/60 px-2 py-0.5 rounded mt-1 border border-emerald-500/30">
-                  🟢 In Doctor Cabin
+                  🟢 Currently in Doctor's Cabin
                 </span>
               </div>
             </div>
@@ -178,20 +211,21 @@ export default function DoctorQueueManagerPage() {
             {/* Action Buttons for Current Patient */}
             <div className="flex flex-wrap items-center gap-2.5 w-full md:w-auto">
               <button
+                onClick={handleComplete}
+                disabled={completing}
+                className="flex-1 md:flex-none inline-flex items-center justify-center gap-1.5 px-5 py-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs shadow-lg transition-all active:scale-95 disabled:opacity-50"
+              >
+                <CheckCircle2 className="w-4 h-4" />
+                <span>{completing ? 'Completing...' : 'Mark Completed'}</span>
+              </button>
+
+              <button
                 onClick={handleCallNext}
-                disabled={callingNext}
+                disabled={callingNext || waiting.length === 0}
                 className="flex-1 md:flex-none inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-teal-400 hover:bg-teal-300 text-slate-950 font-bold text-xs shadow-lg transition-all active:scale-95 disabled:opacity-50"
               >
                 <UserCheck className="w-4 h-4" />
                 <span>Call Next Patient</span>
-              </button>
-
-              <button
-                onClick={handleComplete}
-                className="flex-1 md:flex-none inline-flex items-center justify-center gap-1.5 px-4 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold border border-slate-700 transition-colors"
-              >
-                <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                <span>Complete</span>
               </button>
 
               <button
@@ -212,8 +246,8 @@ export default function DoctorQueueManagerPage() {
               <h3 className="text-base font-bold text-white">No Patient Currently in Cabin</h3>
               <p className="text-xs text-slate-300 mt-1">
                 {waiting.length > 0
-                  ? `${waiting.length} patient(s) are waiting in queue. Click below to call the next patient.`
-                  : 'The queue is currently empty. Patients joining online will appear here.'}
+                  ? `${waiting.length} patient(s) waiting in queue. Click below to admit the next patient.`
+                  : 'The queue is currently empty. Patients joining your clinic queue will appear here live.'}
               </p>
             </div>
 
@@ -236,11 +270,11 @@ export default function DoctorQueueManagerPage() {
         <div className="flex items-center justify-between pb-3 border-b border-slate-100">
           <div>
             <h2 className="text-base font-bold text-slate-900">Waiting Line ({waiting.length})</h2>
-            <p className="text-xs text-slate-500">Patients waiting in virtual / physical queue</p>
+            <p className="text-xs text-slate-500">Patients in sequential line for today</p>
           </div>
 
           <span className="text-xs font-bold text-teal-700 bg-teal-50 px-3 py-1 rounded-full border border-teal-200">
-            Est. Total Wait: ~{waiting.length * (doctor?.avg_consult_time_mins || 10)} min
+            Est. Total Wait: ~{waiting.length * 15} min
           </span>
         </div>
 
@@ -273,21 +307,15 @@ export default function DoctorQueueManagerPage() {
                       )}
                     </h4>
                     <p className="text-[11px] text-slate-500">
-                      Phone: {patient.patient_phone || 'Demo Phone'} • Waiting: ~{(idx + 1) * (doctor?.avg_consult_time_mins || 10)} min
+                      {patient.patient_phone ? `Phone: ${patient.patient_phone} • ` : ''}Waiting position: #{idx + 1} (~{(idx + 1) * 15} min)
                     </p>
                   </div>
                 </div>
 
                 <div className="flex items-center gap-2 w-full sm:w-auto">
                   <button
-                    onClick={handleCallNext}
-                    className="flex-1 sm:flex-none px-3.5 py-1.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold shadow-2xs transition-colors"
-                  >
-                    Call Now
-                  </button>
-                  <button
                     onClick={() => handleSkip(patient.id)}
-                    className="px-2.5 py-1.5 rounded-xl bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-semibold transition-colors"
+                    className="px-3 py-1.5 rounded-xl bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-semibold transition-colors"
                     title="Skip Patient"
                   >
                     Skip
@@ -303,10 +331,10 @@ export default function DoctorQueueManagerPage() {
       {completed.length > 0 && (
         <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-2xs space-y-4">
           <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">
-            Completed Today ({completed.length})
+            Completed Consultations Today ({completed.length})
           </h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-            {completed.slice(0, 6).map((c) => (
+            {completed.slice(0, 9).map((c) => (
               <div
                 key={c.id}
                 className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs flex items-center justify-between"
@@ -324,3 +352,4 @@ export default function DoctorQueueManagerPage() {
     </div>
   );
 }
+

@@ -59,7 +59,22 @@ def login_user(payload: UserLoginRequest, db: Session = Depends(get_db)):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid email or password.")
 
     patient_profile = db.query(Patient).filter(Patient.user_id == user.id).first() if user.role == RoleEnum.PATIENT else None
+    doctor_profile = db.query(Doctor).filter(Doctor.user_id == user.id).first() if user.role == RoleEnum.DOCTOR else None
     token = create_access_token({"sub": str(user.id), "role": user.role.value})
+
+    doctor_data = None
+    if doctor_profile:
+        doctor_data = {
+            "id": doctor_profile.id,
+            "specialty": doctor_profile.specialty,
+            "qualification": doctor_profile.qualification,
+            "experience": doctor_profile.experience,
+            "fee": doctor_profile.fee,
+            "clinic_name": doctor_profile.clinic_name,
+            "address": doctor_profile.address,
+            "clinic_status": doctor_profile.clinic_status.value,
+        }
+
     return {
         "access_token": token,
         "token_type": "bearer",
@@ -71,8 +86,10 @@ def login_user(payload: UserLoginRequest, db: Session = Depends(get_db)):
             "age": patient_profile.age if patient_profile else None,
             "latitude": patient_profile.latitude if patient_profile else None,
             "longitude": patient_profile.longitude if patient_profile else None,
+            "doctor": doctor_data,
         },
     }
+
 
 @router.get("/me")
 def get_current_user_profile(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):

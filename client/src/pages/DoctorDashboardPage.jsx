@@ -18,46 +18,55 @@ import { api } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 
 export default function DoctorDashboardPage() {
-  const { user, isDoctor, switchRole } = useAuth();
+  const { user, doctorInfo, isDoctor, isAuthenticated } = useAuth();
   const navigate = useNavigate();
 
   const [queueData, setQueueData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [togglingStatus, setTogglingStatus] = useState(false);
-
-  const doctorId = 'doc-1'; // Dr. Raj Sharma
+  const [statusMsg, setStatusMsg] = useState(null);
+  const [statusError, setStatusError] = useState(null);
 
   const fetchDoctorData = async () => {
     try {
-      const res = await api.queue.getDoctorQueue(doctorId);
+      const res = await api.queue.getDoctorQueue();
       setQueueData(res);
     } catch (err) {
-      console.error(err);
+      console.warn('Error fetching doctor live queue:', err);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    if (!isDoctor) {
-      switchRole('doctor');
+    if (!isAuthenticated && !loading) {
+      navigate('/login?redirect=/doctor/dashboard');
+      return;
     }
+    if (isAuthenticated && !isDoctor) {
+      navigate('/patient/dashboard');
+      return;
+    }
+
     fetchDoctorData();
     const interval = setInterval(fetchDoctorData, 4000);
     return () => clearInterval(interval);
-  }, []);
+  }, [isAuthenticated, isDoctor]);
 
-  const handleToggleClinicStatus = async () => {
-    if (!queueData?.doctor) return;
+  const handleUpdateStatus = async (newStatus) => {
+    const docId = queueData?.doctor?.id || doctorInfo?.id;
+    if (!docId) return;
+
     setTogglingStatus(true);
-    const newStatus = queueData.doctor.status === 'open' ? 'closed' : 'open';
-    const newAccepting = newStatus === 'open';
+    setStatusError(null);
 
     try {
-      await api.doctors.updateStatus(doctorId, newStatus, newAccepting);
+      await api.doctors.updateStatus(docId, newStatus);
+      setStatusMsg(`Clinic status set to ${newStatus}`);
       await fetchDoctorData();
+      setTimeout(() => setStatusMsg(null), 3000);
     } catch (err) {
-      console.error(err);
+      setStatusError(err.message || 'Failed to update clinic status.');
     } finally {
       setTogglingStatus(false);
     }
@@ -72,50 +81,78 @@ export default function DoctorDashboardPage() {
     );
   }
 
-  const doctor = queueData?.doctor;
+  const doctor = queueData?.doctor || doctorInfo;
   const overview = queueData?.overview || {};
-  const isOpen = doctor?.status === 'open' && doctor?.is_accepting;
+  const currentStatus = doctor?.clinic_status || 'CLOSED';
 
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
-      {/* Header with Greeting & Clinic Status Toggle */}
+      {statusMsg && (
+        <div className="p-3.5 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-900 text-xs font-semibold flex items-center gap-2">
+          <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+          <span>{statusMsg}</span>
+        </div>
+      )}
+
+      {statusError && (
+        <div className="p-3.5 rounded-2xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-semibold flex items-center gap-2">
+          <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+          <span>{statusError}</span>
+        </div>
+      )}
+
+      {/* Header with Greeting & Clinic Status Controls */}
       <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
         <div>
           <span className="text-xs font-bold text-teal-700 uppercase tracking-wider">
             Healthcare Provider Workspace
           </span>
           <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight mt-0.5">
-            Good afternoon, {doctor?.name || 'Dr. Raj Sharma'}
+            Welcome, {user?.name || doctor?.name || 'Doctor'}
           </h1>
           <p className="text-xs sm:text-sm text-slate-500 mt-1">
             {doctor?.specialty} • {doctor?.clinic_name}
           </p>
         </div>
 
-        {/* Status Toggle Card */}
-        <div className="flex items-center gap-3 bg-slate-50 p-3 rounded-2xl border border-slate-200">
-          <div className="flex items-center gap-2">
-            <span
-              className={`w-3 h-3 rounded-full ${
-                isOpen ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'
+        {/* Status Selector: OPEN | PAUSED | CLOSED */}
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 bg-slate-50 p-2.5 rounded-2xl border border-slate-200 text-xs">
+          <span className="font-bold text-slate-700 px-2">Clinic Status:</span>
+          <div className="grid grid-cols-3 gap-1.5 w-full sm:w-auto">
+            <button
+              onClick={() => handleUpdateStatus('OPEN')}
+              disabled={togglingStatus}
+              className={`px-3 py-1.5 rounded-xl font-bold transition-all ${
+                currentStatus === 'OPEN'
+                  ? 'bg-emerald-600 text-white shadow-xs'
+                  : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'
               }`}
-            />
-            <span className="text-xs font-bold text-slate-900">
-              {isOpen ? '🟢 Accepting Patients' : '🔴 Clinic Closed'}
-            </span>
+            >
+              🟢 OPEN
+            </button>
+            <button
+              onClick={() => handleUpdateStatus('PAUSED')}
+              disabled={togglingStatus}
+              className={`px-3 py-1.5 rounded-xl font-bold transition-all ${
+                currentStatus === 'PAUSED'
+                  ? 'bg-amber-500 text-white shadow-xs'
+                  : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'
+              }`}
+            >
+              🟡 PAUSED
+            </button>
+            <button
+              onClick={() => handleUpdateStatus('CLOSED')}
+              disabled={togglingStatus}
+              className={`px-3 py-1.5 rounded-xl font-bold transition-all ${
+                currentStatus === 'CLOSED'
+                  ? 'bg-rose-600 text-white shadow-xs'
+                  : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'
+              }`}
+            >
+              🔴 CLOSED
+            </button>
           </div>
-
-          <button
-            onClick={handleToggleClinicStatus}
-            disabled={togglingStatus}
-            className={`px-3.5 py-1.5 rounded-xl text-xs font-bold text-white transition-all shadow-xs ${
-              isOpen
-                ? 'bg-rose-600 hover:bg-rose-700'
-                : 'bg-emerald-600 hover:bg-emerald-700'
-            }`}
-          >
-            {togglingStatus ? 'Updating...' : isOpen ? 'Close Clinic' : 'Open Clinic'}
-          </button>
         </div>
       </div>
 
@@ -127,7 +164,7 @@ export default function DoctorDashboardPage() {
             Patients Today
           </span>
           <div className="text-2xl sm:text-3xl font-extrabold text-slate-900">
-            {overview.totalPatientsToday || 18}
+            {overview.total_patients_today ?? 0}
           </div>
           <span className="text-[10px] text-teal-600 font-medium">Daily Clinic Traffic</span>
         </div>
@@ -138,7 +175,7 @@ export default function DoctorDashboardPage() {
             Completed
           </span>
           <div className="text-2xl sm:text-3xl font-extrabold text-emerald-600">
-            {overview.completedCount || 11}
+            {overview.completed_count ?? 0}
           </div>
           <span className="text-[10px] text-slate-500 font-medium">Finished Consultations</span>
         </div>
@@ -149,7 +186,7 @@ export default function DoctorDashboardPage() {
             Waiting in Queue
           </span>
           <div className="text-2xl sm:text-3xl font-extrabold text-amber-600">
-            {overview.waitingCount || 5}
+            {overview.waiting_count ?? 0}
           </div>
           <span className="text-[10px] text-slate-500 font-medium">In Queue Line</span>
         </div>
@@ -160,9 +197,9 @@ export default function DoctorDashboardPage() {
             Current Token
           </span>
           <div className="text-2xl sm:text-3xl font-extrabold text-teal-900">
-            #{overview.currentToken || 14}
+            #{overview.current_token ?? '-'}
           </div>
-          <span className="text-[10px] text-teal-700 font-medium">Currently in Cabin</span>
+          <span className="text-[10px] text-teal-700 font-medium">Inside Doctor Room</span>
         </div>
 
         {/* Est Wait Time */}
@@ -171,7 +208,7 @@ export default function DoctorDashboardPage() {
             Queue Wait
           </span>
           <div className="text-2xl sm:text-3xl font-extrabold text-slate-900">
-            ~{overview.estimatedWaitMinutes || 12}m
+            ~{overview.estimated_wait_minutes ?? (overview.waiting_count ? overview.waiting_count * 15 : 0)}m
           </div>
           <span className="text-[10px] text-slate-500 font-medium">Avg Patient Wait</span>
         </div>
@@ -188,7 +225,7 @@ export default function DoctorDashboardPage() {
             Manage your patient flow in real-time.
           </h2>
           <p className="text-xs sm:text-sm text-slate-300 max-w-xl leading-relaxed">
-            Call the next token, mark consultations completed, or skip absent patients. Patients receive immediate live notifications on their phones.
+            Call the next token, mark consultations completed, or skip absent patients. Patients receive immediate live queue notifications on their devices.
           </p>
         </div>
 
@@ -214,23 +251,23 @@ export default function DoctorDashboardPage() {
             </Link>
           </div>
           <div className="text-xs text-slate-600 space-y-2">
-            <p><strong>Fee:</strong> ₹{doctor?.fee || 400} per consultation</p>
-            <p><strong>Clinic Hours:</strong> {doctor?.working_hours || '09:00 AM - 07:00 PM'}</p>
-            <p><strong>Location:</strong> {doctor?.address || 'Bellandur, Bengaluru'}</p>
+            <p><strong>Fee:</strong> ₹{doctor?.fee ?? 400} per consultation</p>
+            <p><strong>Clinic Hours:</strong> {doctor?.working_hours || '09:00 AM - 06:00 PM'}</p>
+            <p><strong>Location:</strong> {doctor?.address || 'Your Registered Clinic Address'}</p>
           </div>
         </div>
 
         <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-2xs space-y-4">
           <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
             <TrendingUp className="w-4 h-4 text-teal-600" />
-            Clinic Queue Analytics
+            Clinic Queue Summary
           </h3>
           <p className="text-xs text-slate-600 leading-relaxed">
-            Average consultation duration today: <strong>10.2 minutes</strong>. Digital queues have reduced your physical waiting room congestion by <strong>74%</strong>.
+            Estimated consultation duration: <strong>15 minutes per patient</strong>. Digital queues have eliminated waiting room congestion.
           </p>
           <div className="pt-1">
             <span className="text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200">
-              ✓ On-Time Schedule Compliance: 94%
+              ✓ Status: {currentStatus}
             </span>
           </div>
         </div>
@@ -238,3 +275,4 @@ export default function DoctorDashboardPage() {
     </div>
   );
 }
+

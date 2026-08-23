@@ -81,6 +81,8 @@ def search_doctors(
     specialty: str = Query(None),
     lat: float | None = Query(None),
     lng: float | None = Query(None),
+    latitude: float | None = Query(None),
+    longitude: float | None = Query(None),
     priority: str = Query("best_match"),
     maxFee: float | None = Query(None),
     maxDistance: float | None = Query(None),
@@ -89,11 +91,13 @@ def search_doctors(
     db: Session = Depends(get_db)
 ):
     ensure_database_schema()
+    effective_lat = lat if lat is not None else latitude
+    effective_lng = lng if lng is not None else longitude
     results = rank_available_doctors(
         db=db,
         specialty=specialty or "",
-        user_lat=lat,
-        user_lng=lng,
+        user_lat=effective_lat,
+        user_lng=effective_lng,
         priority=priority,
         max_fee=maxFee,
         max_distance=maxDistance,
@@ -101,6 +105,7 @@ def search_doctors(
         min_rating=minRating,
     )
     return {"count": len(results), "specialty": specialty or "All Specialties", "priority": priority, "doctors": results}
+
 
 @router.get("/")
 def get_all_available_doctors(db: Session = Depends(get_db)):

@@ -477,6 +477,29 @@ const initialData = {
       image_url: 'https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?w=400&auto=format&fit=crop&q=80',
       current_token: 3,
       is_accepting: true
+    },
+    {
+      id: 'doc-19',
+      user_id: 'doctor-19',
+      name: 'Dr. Surabi',
+      specialty: 'General Physician',
+      experience: 6,
+      qualification: 'MBBS',
+      fee: 200,
+      clinic_name: 'Surabi Clinic',
+      address: 'Koramangala 10th Block, Bengaluru',
+      latitude: 30.6806,
+      longitude: 76.6054,
+      rating: 1,
+      reviews_count: 0,
+      verified: true,
+      status: 'open',
+      working_hours: '09:00 AM - 05:00 PM',
+      avg_consult_time_mins: 7,
+      bio: 'Primary care walk-in doctor for common cough, headaches, minor injuries, and prescription refills.',
+      image_url: '',
+      current_token: 3,
+      is_accepting: true
     }
   ],
   queues: [

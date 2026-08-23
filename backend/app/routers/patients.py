@@ -20,14 +20,17 @@ def get_patient_profile(
     db: Session = Depends(get_db)
 ):
     """Retrieve authenticated patient's account details."""
+    patient = db.query(Patient).filter(Patient.user_id == current_user.id).first()
     return {
         "id": current_user.id,
         "name": current_user.name,
         "email": current_user.email,
         "role": current_user.role.value,
-        "age": current_user.age,
-        "phone": current_user.phone,
-        "location": current_user.location,
+        "age": patient.age if patient else None,
+        "phone": patient.phone if patient else None,
+        "location": patient.location if patient else None,
+        "latitude": patient.latitude if patient else None,
+        "longitude": patient.longitude if patient else None,
         "created_at": current_user.created_at.strftime("%Y-%m-%d")
     }
 
@@ -40,13 +43,20 @@ def update_patient_profile(
     """Update patient personal information."""
     if payload.name:
         current_user.name = payload.name.strip()
+
+    patient = db.query(Patient).filter(Patient.user_id == current_user.id).first()
+    if not patient:
+        patient = Patient(user_id=current_user.id)
+        db.add(patient)
+
     if payload.age is not None:
-        current_user.age = payload.age
+        patient.age = payload.age
     if payload.phone:
-        current_user.phone = payload.phone.strip()
+        patient.phone = payload.phone.strip()
     if payload.location:
-        current_user.location = payload.location.strip()
+        patient.location = payload.location.strip()
 
     db.commit()
     db.refresh(current_user)
     return {"message": "Profile updated successfully."}
+

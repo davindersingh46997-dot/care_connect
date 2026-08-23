@@ -17,6 +17,5 @@ class ReviewResponse(BaseModel):
     comment: Optional[str] = None
     created_at: datetime
 
-    class Config:
-        orm_mode = True
-        from_attributes = True
+    model_config = {"from_attributes": True}
+

@@ -22,6 +22,5 @@ class QueueEntryResponse(BaseModel):
     called_at: Optional[datetime] = None
     completed_at: Optional[datetime] = None
 
-    class Config:
-        orm_mode = True
-        from_attributes = True
+    model_config = {"from_attributes": True}
+

@@ -14,41 +14,51 @@ import { api } from '../services/api';
 
 export default function DoctorProfileEditPage() {
   const navigate = useNavigate();
-  const doctorId = 'doc-1'; // Dr. Raj Sharma
+  const { user, doctorInfo, isDoctor, isAuthenticated, refreshUser } = useAuth();
 
   const [formData, setFormData] = useState({
-    name: 'Dr. Raj Sharma',
-    specialty: 'Dermatology',
-    experience: 12,
-    qualification: 'MD (Dermatology) - AIIMS, DNB',
+    name: '',
+    specialty: '',
+    experience: 5,
+    qualification: '',
     fee: 400,
-    clinic_name: 'Apex Skin & Laser Clinic',
-    address: 'Shop 4, Green Glen Layout, Bellandur, Bengaluru',
-    working_hours: '09:00 AM - 07:00 PM',
-    avg_consult_time_mins: 10,
-    bio: 'Senior Consultant Dermatologist specializing in clinical dermatology, persistent skin rashes, eczema, acne solutions, and skin allergy management.'
+    clinic_name: '',
+    address: '',
+    working_hours: '09:00 AM - 06:00 PM',
+    bio: ''
   });
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [error, setError] = useState(null);
+
+  const docId = doctorInfo?.id;
 
   useEffect(() => {
+    if (!isAuthenticated && !loading) {
+      navigate('/login?redirect=/doctor/profile');
+      return;
+    }
+    if (isAuthenticated && !isDoctor) {
+      navigate('/patient/dashboard');
+      return;
+    }
+
     const fetchDoc = async () => {
       try {
-        const res = await api.doctors.getById(doctorId);
-        if (res.doctor) {
+        if (docId) {
+          const res = await api.doctors.getById(docId);
           setFormData({
-            name: res.doctor.name || '',
-            specialty: res.doctor.specialty || '',
-            experience: res.doctor.experience || 10,
-            qualification: res.doctor.qualification || '',
-            fee: res.doctor.fee || 400,
-            clinic_name: res.doctor.clinic_name || '',
-            address: res.doctor.address || '',
-            working_hours: res.doctor.working_hours || '09:00 AM - 07:00 PM',
-            avg_consult_time_mins: res.doctor.avg_consult_time_mins || 10,
-            bio: res.doctor.bio || ''
+            name: res.name || user?.name || '',
+            specialty: res.specialty || '',
+            experience: res.experience || 5,
+            qualification: res.qualification || '',
+            fee: res.fee ?? res.consultation_fee ?? 400,
+            clinic_name: res.clinic_name || '',
+            address: res.address || res.clinic_address || '',
+            working_hours: res.working_hours || '09:00 AM - 06:00 PM',
+            bio: res.bio || res.profile_description || ''
           });
         }
       } catch (err) {
@@ -59,13 +69,13 @@ export default function DoctorProfileEditPage() {
     };
 
     fetchDoc();
-  }, []);
+  }, [isAuthenticated, isDoctor, docId]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({
       ...prev,
-      [name]: name === 'fee' || name === 'experience' || name === 'avg_consult_time_mins' ? Number(value) : value
+      [name]: name === 'fee' || name === 'experience' ? Number(value) : value
     }));
   };
 
@@ -73,17 +83,31 @@ export default function DoctorProfileEditPage() {
     e.preventDefault();
     setSaving(true);
     setSuccess(false);
+    setError(null);
 
     try {
-      await api.doctors.updateProfile(doctorId, formData);
+      if (!docId) throw new Error('Doctor ID not found.');
+      await api.doctors.updateProfile(docId, {
+        name: formData.name.trim(),
+        specialty: formData.specialty.trim(),
+        qualification: formData.qualification.trim(),
+        experience: Number(formData.experience),
+        fee: Number(formData.fee),
+        clinic_name: formData.clinic_name.trim(),
+        address: formData.address.trim(),
+        working_hours: formData.working_hours.trim(),
+        profile_description: formData.bio.trim()
+      });
+      await refreshUser();
       setSuccess(true);
       setTimeout(() => setSuccess(false), 4000);
     } catch (err) {
-      console.error(err);
+      setError(err.message || 'Failed to update profile.');
     } finally {
       setSaving(false);
     }
   };
+
 
   if (loading) {
     return (

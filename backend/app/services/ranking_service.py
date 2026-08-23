@@ -65,13 +65,14 @@ def get_doctor_real_metrics(db: Session, doctor: Doctor, user_lat: float, user_l
 
 
 def rank_available_doctors(db: Session, specialty: str = "", user_lat: float | None = DEFAULT_USER_LATITUDE, user_lng: float | None = DEFAULT_USER_LONGITUDE, priority: str = "best_match", max_fee: float | None = None, max_distance: float | None = None, only_open: bool = False, min_rating: float | None = None) -> list:
-    query = db.query(Doctor).filter(Doctor.clinic_status != ClinicStatusEnum.CLOSED)
+    query = db.query(Doctor)
     if specialty and specialty.strip() and specialty != "All Specialties":
         query = query.filter(func.lower(Doctor.specialty) == specialty.strip().lower())
     if only_open:
         query = query.filter(Doctor.clinic_status == ClinicStatusEnum.OPEN)
     if max_fee:
         query = query.filter(Doctor.consultation_fee <= max_fee)
+
 
     doctors = query.all()
     enriched = []

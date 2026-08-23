@@ -8,10 +8,8 @@ import {
   Clock,
   User,
   Stethoscope,
-  ChevronDown,
   LogOut,
   LayoutDashboard,
-  ShieldCheck,
   Menu,
   X,
   Moon,
@@ -19,10 +17,9 @@ import {
 } from 'lucide-react';
 
 export default function Navbar() {
-  const { user, role, logout, isDoctor } = useAuth();
+  const { user, isAuthenticated, isDoctor, isPatient, logout } = useAuth();
   const [activeQueue, setActiveQueue] = useState(null);
   const [menuOpen, setMenuOpen] = useState(false);
-  const [userDropdown, setUserDropdown] = useState(false);
   const [darkTheme, setDarkTheme] = useState(() => localStorage.getItem('careconnect_theme') === 'dark');
   const navigate = useNavigate();
   const location = useLocation();
@@ -32,15 +29,21 @@ export default function Navbar() {
     localStorage.setItem('careconnect_theme', darkTheme ? 'dark' : 'light');
   }, [darkTheme]);
 
-  // Check if patient has an active queue entry
+  useEffect(() => {
+    const handleThemeChange = (event) => setDarkTheme(event.detail.dark);
+    window.addEventListener('careconnect-theme-change', handleThemeChange);
+    return () => window.removeEventListener('careconnect-theme-change', handleThemeChange);
+  }, []);
+
+  // Check if authenticated patient has an active queue entry
   useEffect(() => {
     let isMounted = true;
     const fetchQueueStatus = async () => {
-      if (role === 'patient' && user?.id) {
+      if (isPatient && user?.id) {
         try {
           const res = await api.queue.getPatientQueue(user.id);
-          if (isMounted && res.hasActiveQueue) {
-            setActiveQueue(res.activeQueue);
+          if (isMounted && res.has_active_queue) {
+            setActiveQueue(res.active_queue);
           } else if (isMounted) {
             setActiveQueue(null);
           }
@@ -53,12 +56,18 @@ export default function Navbar() {
     };
 
     fetchQueueStatus();
-    const interval = setInterval(fetchQueueStatus, 4000);
+    const interval = setInterval(fetchQueueStatus, 5000);
     return () => {
       isMounted = false;
       clearInterval(interval);
     };
-  }, [role, user?.id]);
+  }, [isPatient, user?.id]);
+
+  const handleLogout = () => {
+    logout();
+    navigate('/');
+    setMenuOpen(false);
+  };
 
   return (
     <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200/80 shadow-xs">
@@ -85,9 +94,9 @@ export default function Navbar() {
           {/* Desktop Navigation */}
           <nav className="hidden md:flex items-center gap-1">
             <Link
-              to="/patient/doctors"
+              to="/doctors"
               className={`px-3.5 py-2 rounded-lg text-sm font-medium transition-colors ${
-                location.pathname.startsWith('/patient/doctors')
+                location.pathname.startsWith('/doctors') || location.pathname.startsWith('/patient/doctors')
                   ? 'text-teal-700 bg-teal-50/80 font-semibold'
                   : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
               }`}
@@ -96,21 +105,25 @@ export default function Navbar() {
             </Link>
 
             <Link
-              to="/#how-it-works"
+              to="/how-it-works"
               className="px-3.5 py-2 rounded-lg text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-colors"
             >
               How It Works
             </Link>
 
             <Link
-              to="/#for-doctors"
-              className="px-3.5 py-2 rounded-lg text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-colors"
+              to="/doctor/register"
+              className={`px-3.5 py-2 rounded-lg text-sm font-medium transition-colors ${
+                location.pathname === '/doctor/register'
+                  ? 'text-teal-700 bg-teal-50/80 font-semibold'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+              }`}
             >
               For Doctors
             </Link>
 
             {/* Patient Active Queue Pill */}
-            {activeQueue && (
+            {activeQueue && isPatient && (
               <Link
                 to="/patient/queue"
                 className="ml-2 inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-300 text-xs font-semibold hover:bg-emerald-100 transition-colors animate-pulse-glow"
@@ -118,7 +131,7 @@ export default function Navbar() {
                 <Clock className="w-3.5 h-3.5 text-emerald-600 animate-spin" style={{ animationDuration: '8s' }} />
                 <span>Your Token: #{activeQueue.token_number}</span>
                 <span className="px-1.5 py-0.2 rounded-full bg-emerald-600 text-white text-[10px]">
-                  {activeQueue.is_next ? "Next!" : `~${activeQueue.estimated_wait_mins}m`}
+                  {activeQueue.is_next ? 'Next!' : `~${activeQueue.estimated_wait_mins}m`}
                 </span>
               </Link>
             )}
@@ -126,7 +139,11 @@ export default function Navbar() {
             {isDoctor && (
               <Link
                 to="/doctor/dashboard"
-                className="ml-2 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-teal-50 text-teal-800 border border-teal-200 text-xs font-semibold hover:bg-teal-100 transition-colors"
+                className={`ml-2 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-semibold transition-colors ${
+                  location.pathname === '/doctor/dashboard'
+                    ? 'bg-teal-600 text-white border-teal-600'
+                    : 'bg-teal-50 text-teal-800 border-teal-200 hover:bg-teal-100'
+                }`}
               >
                 <LayoutDashboard className="w-3.5 h-3.5" />
                 <span>Doctor Portal</span>
@@ -145,49 +162,68 @@ export default function Navbar() {
             >
               {darkTheme ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
             </button>
-            {isDoctor ? (
+
+            {isAuthenticated ? (
               <div className="flex items-center gap-2">
-                <Link
-                  to="/doctor/queue"
-                  className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold shadow-sm transition-all"
+                {isDoctor ? (
+                  <>
+                    <Link
+                      to="/doctor/queue"
+                      className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold shadow-sm transition-all"
+                    >
+                      <Stethoscope className="w-3.5 h-3.5" />
+                      Live Queue Desk
+                    </Link>
+                    <Link
+                      to="/doctor/profile"
+                      className="p-2 rounded-xl text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors"
+                      title="Doctor Profile"
+                    >
+                      <User className="w-5 h-5" />
+                    </Link>
+                  </>
+                ) : (
+                  <>
+                    {activeQueue && (
+                      <Link
+                        to="/patient/queue"
+                        className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold shadow-sm transition-all"
+                      >
+                        <Clock className="w-3.5 h-3.5" />
+                        Track Token #{activeQueue.token_number}
+                      </Link>
+                    )}
+                    <Link
+                      to="/patient/profile"
+                      className="p-2 rounded-xl text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors"
+                      title="Patient Profile"
+                    >
+                      <User className="w-5 h-5" />
+                    </Link>
+                  </>
+                )}
+
+                <button
+                  onClick={handleLogout}
+                  className="p-2 rounded-xl text-rose-600 hover:text-rose-700 hover:bg-rose-50 transition-colors"
+                  title="Sign Out"
                 >
-                  <Stethoscope className="w-3.5 h-3.5" />
-                  Live Queue Manager
-                </Link>
-                <Link
-                  to="/doctor/profile"
-                  className="p-2 rounded-xl text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors"
-                  title="Doctor Profile"
-                >
-                  <User className="w-5 h-5" />
-                </Link>
+                  <LogOut className="w-5 h-5" />
+                </button>
               </div>
             ) : (
               <div className="flex items-center gap-2">
-                {activeQueue ? (
-                  <Link
-                    to="/patient/queue"
-                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold shadow-sm transition-all"
-                  >
-                    <Clock className="w-3.5 h-3.5" />
-                    Track Token #{activeQueue.token_number}
-                  </Link>
-                ) : (
-                  <Link
-                    to="/patient/search"
-                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold shadow-sm hover:shadow-teal-500/20 transition-all"
-                  >
-                    <Search className="w-3.5 h-3.5" />
-                    Find a Doctor
-                  </Link>
-                )}
-
                 <Link
-                  to="/patient/profile"
-                  className="p-2 rounded-xl text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors"
-                  title="Patient Dashboard"
+                  to="/login"
+                  className="px-4 py-2 rounded-xl text-xs font-bold text-slate-700 hover:text-slate-900 hover:bg-slate-100 transition-colors"
                 >
-                  <User className="w-5 h-5" />
+                  Sign In
+                </Link>
+                <Link
+                  to="/patient/signup"
+                  className="px-4 py-2 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold shadow-sm hover:shadow-teal-500/20 transition-all"
+                >
+                  Sign Up
                 </Link>
               </div>
             )}
@@ -225,29 +261,106 @@ export default function Navbar() {
       {menuOpen && (
         <div className="md:hidden border-t border-slate-200 bg-white px-4 pt-3 pb-5 space-y-2">
           <Link
-            to="/patient/doctors"
+            to="/doctors"
             onClick={() => setMenuOpen(false)}
             className="block px-3 py-2 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50"
           >
             Find a Doctor
           </Link>
           <Link
-            to="/patient/queue"
+            to="/how-it-works"
             onClick={() => setMenuOpen(false)}
             className="block px-3 py-2 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50"
           >
-            My Queue Status
+            How It Works
           </Link>
-          <Link to="/doctor/dashboard" onClick={() => setMenuOpen(false)} className="block px-3 py-2 rounded-lg text-sm font-medium text-teal-700 hover:bg-teal-50">Doctor Dashboard</Link>
           <Link
-            to="/patient/profile"
+            to="/doctor/register"
             onClick={() => setMenuOpen(false)}
-            className="block px-3 py-2 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50"
+            className="block px-3 py-2 rounded-lg text-sm font-medium text-teal-700 hover:bg-teal-50"
           >
-            Patient Profile & History
+            For Doctors
           </Link>
+
+          {isAuthenticated ? (
+            <>
+              {isDoctor ? (
+                <>
+                  <Link
+                    to="/doctor/dashboard"
+                    onClick={() => setMenuOpen(false)}
+                    className="block px-3 py-2 rounded-lg text-sm font-medium text-teal-700 hover:bg-teal-50"
+                  >
+                    Doctor Dashboard
+                  </Link>
+                  <Link
+                    to="/doctor/queue"
+                    onClick={() => setMenuOpen(false)}
+                    className="block px-3 py-2 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50"
+                  >
+                    Live Queue Desk
+                  </Link>
+                  <Link
+                    to="/doctor/profile"
+                    onClick={() => setMenuOpen(false)}
+                    className="block px-3 py-2 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50"
+                  >
+                    Clinic Profile
+                  </Link>
+                </>
+              ) : (
+                <>
+                  <Link
+                    to="/patient/dashboard"
+                    onClick={() => setMenuOpen(false)}
+                    className="block px-3 py-2 rounded-lg text-sm font-medium text-teal-700 hover:bg-teal-50"
+                  >
+                    Patient Dashboard
+                  </Link>
+                  <Link
+                    to="/patient/queue"
+                    onClick={() => setMenuOpen(false)}
+                    className="block px-3 py-2 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50"
+                  >
+                    Live Queue Tracker
+                  </Link>
+                  <Link
+                    to="/patient/profile"
+                    onClick={() => setMenuOpen(false)}
+                    className="block px-3 py-2 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50"
+                  >
+                    My Profile
+                  </Link>
+                </>
+              )}
+              <button
+                onClick={handleLogout}
+                className="w-full text-left px-3 py-2 rounded-lg text-sm font-medium text-rose-600 hover:bg-rose-50"
+              >
+                Sign Out
+              </button>
+            </>
+          ) : (
+            <div className="pt-2 border-t border-slate-100 flex flex-col gap-2">
+              <Link
+                to="/login"
+                onClick={() => setMenuOpen(false)}
+                className="block text-center py-2 rounded-xl text-sm font-bold text-slate-700 bg-slate-100 hover:bg-slate-200"
+              >
+                Sign In
+              </Link>
+              <Link
+                to="/patient/signup"
+                onClick={() => setMenuOpen(false)}
+                className="block text-center py-2 rounded-xl text-sm font-bold text-white bg-teal-600 hover:bg-teal-700"
+              >
+                Sign Up
+              </Link>
+            </div>
+          )}
         </div>
       )}
     </header>
   );
 }
+
