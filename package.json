@@ -8,5 +8,15 @@
     "client": "npm run dev --prefix client",
     "start": "node server/src/server.js",
     "build": "npm run build --prefix client"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^6.1.0",
+    "autoprefixer": "^10.5.4",
+    "tailwindcss": "^4.3.3",
+    "vite": "^8.2.2"
+  },
+  "dependencies": {
+    "@tailwindcss/postcss": "^4.3.3",
+    "@tailwindcss/vite": "^4.3.3"
   }
 }
