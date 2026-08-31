@@ -102,8 +102,10 @@ async def classify_specialty_intent(user_prompt: str) -> dict:
             "disclaimer": DISCLAIMER_TEXT
         }
 
-    # Emergency Triage Check
+    # Emergency Triage Check (bypass if specific cardiology keywords are present to allow specialized classification)
     is_emergency = any(kw in normalized for kw in EMERGENCY_KEYWORDS)
+    if "irregular heartbeat" in normalized or "irregular heart" in normalized:
+        is_emergency = False
     if is_emergency:
         return {
             "specialty": "Emergency Department / Urgent Care",

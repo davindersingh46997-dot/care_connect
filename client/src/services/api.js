@@ -33,6 +33,10 @@ export const api = {
     send: (message) => fetchJson(`${API_BASE}/chat`, {
       method: 'POST',
       body: JSON.stringify({ message })
+    }),
+    stream: (message) => fetchJson(`${API_BASE}/chat/stream`, {
+      method: 'POST',
+      body: JSON.stringify({ message })
     })
   },
 
@@ -101,12 +105,12 @@ export const api = {
         method: 'POST',
         body: JSON.stringify({
           ...data,
-          doctorId: data.doctorId || data.doctor_id
+          doctor_id: data.doctor_id ?? data.doctorId
         })
       }),
-    getDoctorQueue: (doctorId = 'doc-1') => fetchJson(`${API_BASE}/queue/${doctorId}`),
-    getPatientQueue: async (patientId = 'patient-1') => {
-      const response = await fetchJson(`${API_BASE}/queue/patient/${patientId}`);
+    getDoctorQueue: () => fetchJson(`${API_BASE}/queue/doctor`),
+    getPatientQueue: async () => {
+      const response = await fetchJson(`${API_BASE}/queue/patient`);
       const activeQueue = response.active_queue ?? response.activeQueue;
       const doctor = activeQueue?.doctor;
       const normalizedActiveQueue = activeQueue ? {
@@ -144,6 +148,10 @@ export const api = {
       fetchJson(`${API_BASE}/queue/leave`, {
         method: 'POST',
         body: JSON.stringify(data)
+      }),
+    resetDemo: () =>
+      fetchJson(`${API_BASE}/queue/reset`, {
+        method: 'POST'
       })
   },
 
@@ -154,6 +162,19 @@ export const api = {
         method: 'POST',
         body: JSON.stringify(data)
       }),
+    register: (data) => {
+      const payload = { ...data };
+      if (payload.role === 'doctor' || payload.role === 'DOCTOR') {
+        return fetchJson(`${API_BASE}/doctors/register`, {
+          method: 'POST',
+          body: JSON.stringify(payload)
+        });
+      }
+      return fetchJson(`${API_BASE}/auth/register`, {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      });
+    },
     registerPatient: (data) =>
       fetchJson(`${API_BASE}/auth/register`, {
         method: 'POST',

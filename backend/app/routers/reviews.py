@@ -49,7 +49,7 @@ def submit_doctor_review(
 
     if not queue_entry:
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
+            status_code=status.HTTP_400_BAD_REQUEST,
             detail="Only patients with a completed consultation with this doctor may submit a review."
         )
 
@@ -75,5 +75,9 @@ def submit_doctor_review(
 
     return {
         "message": "Thank you! Your verified patient review has been posted.",
-        "review_id": new_review.id
+        "review_id": new_review.id,
+        "id": new_review.id,
+        "rating": new_review.rating,
+        "comment": new_review.comment,
+        "patient_name": new_review.patient_name
     }

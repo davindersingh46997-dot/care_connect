@@ -36,12 +36,10 @@ def join_digital_queue(
     ).first()
 
     if existing_active:
-        return {
-            "message": "You are already active in the queue for this clinic.",
-            "already_joined": True,
-            "token_number": existing_active.token_number,
-            "status": existing_active.status.value
-        }
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="You are already active in the queue for this clinic."
+        )
 
     # Generate sequential token number for this doctor
     max_token = db.query(func.max(QueueEntry.token_number)).filter(
@@ -88,6 +86,7 @@ def join_digital_queue(
         "message": f"Successfully joined queue. Your Token is #{entry.token_number}.",
         "already_joined": False,
         "token_number": entry.token_number,
+        "status": entry.status.value,
         "patients_ahead": patients_ahead,
         "estimated_wait_mins": est_wait,
         "is_next": patients_ahead == 0,
@@ -157,7 +156,7 @@ def get_patient_live_queue(
             QueueEntry.status == QueueStatusEnum.WAITING,
             QueueEntry.created_at < active_entry.created_at
         ).count()
-        patients_ahead = waiting_ahead + (1 if consulting_entry else 0)
+        patients_ahead = waiting_ahead
         avg_dur = doctor.avg_consult_duration_mins or 10
         est_wait = patients_ahead * avg_dur
         is_next = (patients_ahead == 0)

@@ -6,6 +6,7 @@ from backend.app.models.doctor import Doctor, ClinicStatusEnum
 from backend.app.models.review import Review
 from backend.app.schemas.doctor import DoctorRegisterRequest, DoctorUpdateRequest, DoctorAvailabilityRequest
 from backend.app.services.auth_service import hash_password, create_access_token
+from backend.app.services.google_doctor_service import fetch_real_doctors_from_google
 from backend.app.services.ranking_service import rank_available_doctors, get_doctor_real_metrics
 from backend.app.utils.dependencies import get_current_user, get_optional_user, require_role
 
@@ -88,6 +89,7 @@ def search_doctors(
     maxDistance: float | None = Query(None),
     onlyOpen: bool = Query(False),
     minRating: float | None = Query(None),
+    location: str | None = Query(None),
     db: Session = Depends(get_db)
 ):
     ensure_database_schema()
@@ -104,7 +106,25 @@ def search_doctors(
         only_open=onlyOpen,
         min_rating=minRating,
     )
-    return {"count": len(results), "specialty": specialty or "All Specialties", "priority": priority, "doctors": results}
+
+    google_results = []
+    if specialty and getattr(__import__('backend.app.config', fromlist=['settings']).settings, 'GOOGLE_MAPS_API_KEY', ''):
+        google_results = fetch_real_doctors_from_google(
+            specialty=specialty,
+            lat=effective_lat,
+            lng=effective_lng,
+            location=location,
+            max_results=5,
+        )
+
+    combined = (google_results or []) + results
+    return {
+        "count": len(combined),
+        "specialty": specialty or "All Specialties",
+        "priority": priority,
+        "doctors": combined,
+        "source": "google" if google_results else "local",
+    }
 
 
 @router.get("/")
