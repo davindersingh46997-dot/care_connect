@@ -231,4 +231,3 @@ def chat_stream(payload: ChatRequest):
 @app.post("/api/queue/reset-demo")
 def reset_demo_queue():
     return {"message": "Demo queue data reset requested. In persistent environments, reset logic should be handled by the database or service layer.", "reset": True}
-

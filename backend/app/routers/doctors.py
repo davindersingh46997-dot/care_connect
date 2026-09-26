@@ -1,5 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
+from pathlib import Path
+import json
 from backend.app.database import get_db, ensure_database_schema
 from backend.app.models.user import User, RoleEnum
 from backend.app.models.doctor import Doctor, ClinicStatusEnum
@@ -11,6 +13,21 @@ from backend.app.services.ranking_service import rank_available_doctors, get_doc
 from backend.app.utils.dependencies import get_current_user, get_optional_user, require_role
 
 router = APIRouter(prefix="/api/doctors", tags=["Doctors"])
+
+DATABASE_FILE = (
+    Path(__file__).resolve().parent.parent.parent.parent
+    / "server"
+    / "src"
+    / "data"
+    / "db_store.json"
+)
+
+def load_doctor():
+    with open(DATABASE_FILE,"r",encoding = "utf-8") as file:
+        data = json.load(file)
+
+    return data.get("doctors",[])
+
 
 @router.post("/register", status_code=status.HTTP_201_CREATED)
 def register_doctor(payload: DoctorRegisterRequest, db: Session = Depends(get_db)):
@@ -77,9 +94,10 @@ def register_doctor(payload: DoctorRegisterRequest, db: Session = Depends(get_db
         }
     }
 
+
 @router.get("/search")
-def search_doctors(
-    specialty: str = Query(None),
+def search_doctor(
+     specialty: str = Query(None),
     lat: float | None = Query(None),
     lng: float | None = Query(None),
     latitude: float | None = Query(None),
@@ -90,42 +108,52 @@ def search_doctors(
     onlyOpen: bool = Query(False),
     minRating: float | None = Query(None),
     location: str | None = Query(None),
-    db: Session = Depends(get_db)
 ):
-    ensure_database_schema()
-    effective_lat = lat if lat is not None else latitude
-    effective_lng = lng if lng is not None else longitude
-    results = rank_available_doctors(
-        db=db,
-        specialty=specialty or "",
-        user_lat=effective_lat,
-        user_lng=effective_lng,
-        priority=priority,
-        max_fee=maxFee,
-        max_distance=maxDistance,
-        only_open=onlyOpen,
-        min_rating=minRating,
-    )
 
-    google_results = []
-    if specialty and getattr(__import__('backend.app.config', fromlist=['settings']).settings, 'GOOGLE_MAPS_API_KEY', ''):
-        google_results = fetch_real_doctors_from_google(
-            specialty=specialty,
-            lat=effective_lat,
-            lng=effective_lng,
-            location=location,
-            max_results=5,
-        )
+    """
+    searchs the nearby doctors.
+    """
+    
+    doctors = load_doctor()
 
-    combined = (google_results or []) + results
+    if specialty:
+        specialty = specialty.strip().lower()
+
+        doctors = [
+            doctor 
+            for doctor in doctors
+            if doctor.get("specialty","").strip().lower() == specialty
+        ]
+
+    if minRating is not None:
+
+        doctors = [
+            doctor
+            for doctor in doctors
+            if doctor.get("rating",0) >= minRating
+        ]
+
+    if maxFee is not None:
+        doctors = [
+            doctor
+            for doctor in doctors
+            if doctor.get("fee", 0) <= maxFee
+        ]
+
+    if onlyOpen:
+        doctors = [
+            doctor
+            for doctor in doctors
+            if doctor.get("is_open", False)
+        ]    
+
     return {
-        "count": len(combined),
+        "count": len(doctors),
         "specialty": specialty or "All Specialties",
         "priority": priority,
-        "doctors": combined,
-        "source": "google" if google_results else "local",
+        "doctors": doctors,
+        "source": "local",
     }
-
 
 @router.get("/")
 def get_all_available_doctors(db: Session = Depends(get_db)):
